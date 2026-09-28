@@ -174,8 +174,9 @@ Mesuré : le rendu aboutit sous unshare -rn avec la boucle locale active
 boucle locale est coupée (ENETUNREACH) : le moteur sert les fichiers par
 un serveur HTTP local et pilote Chrome par la boucle locale.
 
-Couche 4, formulée par la négative : toute requête dont l'hôte n'est ni
-127.0.0.1 ni ::1 fait échouer le rendu ; tous les hôtes sont journalisés.
+Couche 4 : voir §11 (règle reformulée au niveau des octets ; l'ancienne
+formulation « toute requête dont l'hôte n'est ni 127.0.0.1 ni ::1 », au
+niveau de l'appel système, était fausse).
 
 Chrome n'est pas épinglé par hyperframes@0.8.83 : le moteur télécharge
 son Chrome au premier rendu (~/.cache/hyperframes/chrome, 12 min ici ;
@@ -227,3 +228,33 @@ lint (boîte fabriquée), pas par une quatrième vidéo.
 Lint : toutes les frames (450 seeks), pas d'échantillonnage. Chronométré
 et reporté au rapport : c'est la mesure qui dira s'il faut échantillonner
 en production.
+
+═══ 11. RÈGLE RÉSEAU DU RENDU (remplace la couche 4 du §9) ═══
+
+Principe : c'est la donnée qui franchit, pas l'appel système. R11 parle
+de fetch réseau et d'uri distante ; la formulation opérationnelle du §9
+était plus stricte que le contrat. Correction du brief, pas un écart.
+
+Un rendu échoue si une donnée franchit la frontière :
+- toute connexion TCP vers une adresse hors boucle locale ;
+- tout envoi d'octets sur un descripteur associé à une adresse hors
+  boucle locale ;
+- toute connexion UDP vers une adresse hors boucle locale, SAUF la sonde
+  de joignabilité IPv6 de Chrome, définie par la conjonction de :
+  AF_INET6 et SOCK_DGRAM ; connect() vers exactement
+  2001:4860:4860::8888 port 443 ; zéro appel d'envoi (write, send,
+  sendto, sendmsg, sendmmsg) sur ce descripteur de socket() à close().
+Toute tolérance est nommée, pinée à une adresse, et se retourne en échec
+dès qu'un octet part. Pas d'exception générique « UDP sans envoi ».
+La sonde est consignée au rapport comme exception documentée, avec son
+nombre d'occurrences.
+
+Leçon à garder au rapport T0 : le premier rendu « propre » (seulement
+127.0.0.1 ×21) était un faux négatif — le parseur ignorait l'IPv6. Un
+détecteur non éprouvé raconte ce qu'on veut entendre. Même méthode sur
+le lint, la conformité et le déterminisme : prouver que chaque contrôle
+refuse.
+
+Chiffres à consigner : lint 62 à 110 ms pour 450 frames (échantillonnage
+inutile, en production aussi) ; rendu 29 s pour 15 s strace compris, à
+remesurer sans strace pour le rapport.

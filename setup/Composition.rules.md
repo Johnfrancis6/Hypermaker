@@ -207,8 +207,13 @@ la voix off, pas lues dans le storyboard, qui ne donne que des cibles.
 - Chaque effet est rattaché à un événement de la timeline (`event_ref` : une
   transition, l'apparition d'un élément, une emphase) qui existe dans la
   composition
-- `sfx.start_ms` égale le `start_ms` de l'événement ±1 frame. Un son décalé
-  d'un demi-temps se remarque plus qu'une absence de son.
+- `sfx.start_ms + sfx.attack_ms` égale le `start_ms` de l'événement ±1 frame.
+  C'est l'**attaque** du son qui doit tomber sur l'événement, pas le début de son
+  fichier. `attack_ms` est mesuré une fois, à l'import de la bibliothèque (premier
+  échantillon à -20 dBFS du pic), et recopié dans la composition par le
+  compilateur. Sans lui, un whoosh dont le fichier commence par 90 ms de souffle
+  passe la règle et s'entend en retard, tandis qu'un son calé à l'oreille échoue.
+  Un son décalé d'un demi-temps se remarque plus qu'une absence de son.
 - Les effets **structurels** (transitions, apparitions) proviennent du Brand Pack
   ou du template ; les effets **sémantiques** proviennent d'une décision du plan
   (`plan_decision_ref` obligatoire)
@@ -320,7 +325,7 @@ fois lors du test HyperFrames (T0), puis en CI.
 Avant chaque appel payant ou coûteux (génération fal.ai, voix off sur GPU) :
 
 ```
-si assets[ref].provenance.generation_key existe déjà en base
+si (client_id, assets[ref].provenance.generation_key) existe déjà en base
    et l'objet R2 correspondant est présent
 alors réutiliser, ne pas régénérer
 sinon décrémenter le plafond du type de job (D35), PUIS appeler

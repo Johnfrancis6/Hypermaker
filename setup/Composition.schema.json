@@ -303,7 +303,7 @@
       "properties": {
         "source": { "enum": ["client", "brand_pack", "generated", "tts", "library", "derived"] },
         "generation_key": { "$ref": "#/$defs/sha256",
-          "$comment": "sha256(provider | model | prompt | negative_prompt | seed | params), ou sha256(model | voice_id | texte | params) pour la voix off." },
+          "$comment": "sha256(provider | model | prompt | negative_prompt | seed | params), ou sha256(model | voice_id | texte | params) pour la voix off. La clé ne contient PAS le client_id : deux clients qui demandent la même image avec le même seed produisent la même valeur. La recherche d'idempotence est donc toujours bornée au client, clé d'unicité en base (client_id, generation_key), R12." },
         "provider": { "type": "string",
           "$comment": "fal.ai pour la génération, identifiant du Job GPU pour la voix off." },
         "model": { "type": "string" },
@@ -641,7 +641,7 @@
     "sfx": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sfx_id", "asset_ref", "origin", "event_ref", "start_ms", "gain_db"],
+      "required": ["sfx_id", "asset_ref", "origin", "event_ref", "start_ms", "attack_ms", "gain_db"],
       "$comment": "Effet sonore rattaché à un événement de la timeline, aligné sur lui ±1 frame (R14).",
       "properties": {
         "sfx_id": { "type": "string", "pattern": "^sfx_[a-z0-9_]{2,32}$" },
@@ -660,7 +660,9 @@
           }
         },
         "start_ms": { "type": "integer", "minimum": 0,
-          "$comment": "Position sur la timeline globale." },
+          "$comment": "Position du DÉBUT DU FICHIER sur la timeline globale." },
+        "attack_ms": { "type": "integer", "minimum": 0,
+          "$comment": "Décalage entre le début du fichier et son attaque, mesuré à l'import de la bibliothèque (premier échantillon à -20 dBFS du pic). C'est start_ms + attack_ms qui doit tomber sur l'événement (R14)." },
         "gain_db": { "type": "number", "minimum": -30, "maximum": 0 }
       },
       "if": { "properties": { "origin": { "const": "semantic" } } },

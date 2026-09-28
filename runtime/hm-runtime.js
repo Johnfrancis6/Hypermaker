@@ -109,13 +109,27 @@
 
       // 4. Timeline unique, en pause. Tous les temps sont des secondes
       //    issues de frame / fps (inject.mjs).
+      //
+      //    L'état à t = 0 est posé en style inline AVANT la timeline, et la
+      //    timeline ne porte que des CHANGEMENTS, jamais deux instructions
+      //    contradictoires sur un même élément à une même position. Mesuré le
+      //    28/09 : deux set() à la position 0 (caché, puis visible) laissaient
+      //    le résultat dépendre de l'historique de seek de chaque worker du
+      //    moteur — frame 0 vide dans tous les rendus, frames 150 à 224 vides
+      //    dans un rendu sur six. Sur une page fraîche, seek(0) ne rend rien :
+      //    l'état à 0 doit donc déjà être dans le DOM.
+      function etatInitial(el, visible) {
+        el.style.visibility = visible ? "inherit" : "hidden";
+        el.style.opacity = visible ? "1" : "0";
+      }
       var tl = gsap.timeline({ paused: true });
       d.scenes.forEach(function (sc, i) {
         var section = scenes[i];
-        tl.set(section, { autoAlpha: 0 }, 0);
+        var visibleA0 = sc.visible_debut_s === 0 && !sc.fondu_entree;
+        etatInitial(section, visibleA0);
         if (sc.fondu_entree) {
-          tl.fromTo(section, { autoAlpha: 0 }, { autoAlpha: 1, duration: sc.fondu_entree.duree_s, ease: ease(sc.fondu_entree.easing) }, sc.fondu_entree.debut_s);
-        } else {
+          tl.fromTo(section, { autoAlpha: 0 }, { autoAlpha: 1, duration: sc.fondu_entree.duree_s, ease: ease(sc.fondu_entree.easing), immediateRender: false }, sc.fondu_entree.debut_s);
+        } else if (!visibleA0) {
           tl.set(section, { autoAlpha: 1 }, sc.visible_debut_s);
         }
         if (sc.visible_fin_s < d.duree_s) tl.set(section, { autoAlpha: 0 }, sc.visible_fin_s);
@@ -123,8 +137,8 @@
           if (s.nature !== "texte") return;
           var el = section.querySelector('[data-slot="' + s.slot + '"]');
           if (s.animation.type !== "fade_in") return echec(s.text_id + " : animation " + s.animation.type + " sans amplitude dans la composition, non rendable");
-          tl.set(el, { opacity: 0 }, 0);
-          tl.to(el, { opacity: 1, duration: s.animation.duree_s, ease: ease(s.animation.easing) }, s.animation.debut_s);
+          el.style.opacity = "0"; // fade_in part de 0, quelle que soit sa position
+          tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: s.animation.duree_s, ease: ease(s.animation.easing), immediateRender: false }, s.animation.debut_s);
         });
       });
       tl.set({}, {}, d.duree_s); // la timeline couvre exactement le canvas

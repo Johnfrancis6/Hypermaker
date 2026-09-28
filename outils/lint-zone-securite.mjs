@@ -12,6 +12,15 @@
 // min_font_size_px. Débordement et lignes viennent de window.hmMesure, LA
 // fonction du runtime : le lint ne réimplémente rien.
 //
+// Historique de seek (R11) : le moteur répartit les frames entre plusieurs
+// workers, chacun sur sa propre page, qui seeke à partir d'où il en est. L'état
+// d'une frame ne doit donc dépendre que de son temps. Le lint relève l'état
+// (visibilité, opacité, boîte) de chaque scène et de chaque slot à chaque frame
+// en passe avant, puis le recompare en passe arrière, et exige que l'état de
+// la page fraîche, avant tout seek, soit celui de la frame 0. Mesuré le 28/09 :
+// deux set() contradictoires à la position 0 donnaient une frame 0 vide dans
+// tous les rendus, et les frames 150 à 224 vides dans un rendu sur six.
+//
 // Réseau : pendant le lint, toute requête autre que file: ou data: fait
 // échouer (la page est ouverte depuis le disque, sans serveur).
 //
@@ -83,10 +92,28 @@ export async function linter(dossier) {
         return true;
       };
       const tl = window.__timelines.root;
+      const suivis = [...document.querySelectorAll(".hm-scene, [data-slot]")];
+      const signature = () =>
+        suivis
+          .map((el) => {
+            const cs = getComputedStyle(el);
+            const b = el.getBoundingClientRect();
+            return `${cs.visibility}|${Math.round(parseFloat(cs.opacity) * 1000)}|${Math.round(b.left)},${Math.round(b.top)},${Math.round(b.width)},${Math.round(b.height)}`;
+          })
+          .join(";");
+      const nomDe = (i) => suivis[i].dataset.scene ?? `${suivis[i].closest(".hm-scene").dataset.scene}/${suivis[i].dataset.slot}`;
+      const ecart = (a, b) => {
+        const x = a.split(";"), y = b.split(";");
+        const i = x.findIndex((v, k) => v !== y[k]);
+        return `${nomDe(i)} : ${x[i]} contre ${y[i]}`;
+      };
+      const initiale = signature(); // page fraîche, avant tout seek
+      const signatures = [];
       const vus = new Set();
       const dejaSignale = new Set();
       for (let f = 0; f < d.frames; f++) {
         tl.seek(f / d.fps, false);
+        signatures.push(signature());
         for (const c of cibles) {
           if (!visible(c.el)) continue;
           vus.add(c.id);
@@ -109,6 +136,19 @@ export async function linter(dossier) {
       }
       for (const c of cibles) {
         if (!vus.has(c.id)) res.violations.push({ regle: "R5", element: c.id, raison: "jamais visible : non mesuré" });
+      }
+      // Passe arrière : même état à chaque frame, quel que soit le chemin.
+      for (let f = d.frames - 1; f >= 0; f--) {
+        tl.seek(f / d.fps, false);
+        const s = signature();
+        if (s !== signatures[f]) {
+          res.violations.push({ regle: "R11", frame: f, raison: `état dépendant de l'historique de seek (passe arrière ≠ passe avant) — ${ecart(s, signatures[f])}` });
+          break;
+        }
+      }
+      const zero = signature();
+      if (initiale !== zero) {
+        res.violations.push({ regle: "R11", frame: 0, raison: `l'état de la page fraîche n'est pas celui de la frame 0 — ${ecart(initiale, zero)}` });
       }
       tl.seek(0, false);
       return res;

@@ -150,3 +150,21 @@ test("lint refuse (R11) : requête réseau depuis la page", async () => {
   assert.equal(r.ok, false);
   assert.match(raisons(r), /R11 .*example\.invalid/);
 });
+
+test("lint refuse (R11) : état dépendant de l'historique de seek (motif fautif du runtime avant correctif)", async () => {
+  // Reproduit la sc_02 d'avant le correctif : visible par le CSS au
+  // chargement, set() « caché » à la position 0, « visible » à 7,5 s. Sur page
+  // fraîche, seek(0) ne rend rien : la frame 0 dépend du chemin. Le motif est
+  // greffé au moment où le runtime enregistre sa timeline.
+  const greffe = `<script>window.__timelines = new Proxy({}, { set: function (t, k, tl) {
+      var s = document.createElement("section");
+      s.className = "hm-scene"; s.setAttribute("data-scene", "sc_test");
+      s.style.cssText = "position:absolute;inset:0;background:var(--brand-fond)";
+      document.getElementById("root").appendChild(s);
+      tl.set(s, { autoAlpha: 0 }, 0); tl.set(s, { autoAlpha: 1 }, 7.5);
+      t[k] = tl; return true; } });</script>
+<script src="hm-runtime.js"></script>`;
+  const r = await linter(rendu({ html: (h) => h.replace('<script src="hm-runtime.js"></script>', greffe) }));
+  assert.equal(r.ok, false);
+  assert.match(raisons(r), /R11 .*(historique de seek|page fraîche).*sc_test/);
+});

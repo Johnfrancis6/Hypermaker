@@ -97,20 +97,8 @@
           var el = scenes[i].querySelector('[data-slot="' + s.slot + '"]');
           if (s.overflow !== "shrink" && s.overflow !== "wrap") return echec(s.text_id + " : overflow " + s.overflow + " non géré en T0");
           var taille = s.taille_px;
-          // Lignes RENDUES : une ligne = une ordonnée distincte parmi les
-          // rectangles du texte. Ne pas déduire les lignes de scrollHeight :
-          // il ne descend jamais sous la hauteur de la boîte, donc l'estimation
-          // grossit quand la police rétrécit.
-          function lignes() {
-            var r = document.createRange();
-            r.selectNodeContents(el);
-            var tops = {};
-            Array.prototype.forEach.call(r.getClientRects(), function (x) { tops[Math.round(x.top)] = true; });
-            return Object.keys(tops).length;
-          }
-          function deborde() { return el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth || lignes() > s.max_lignes; }
           if (s.overflow === "shrink") {
-            while (deborde() && taille > s.taille_min_px) {
+            while (window.hmMesure.deborde(el, s.max_lignes) && taille > s.taille_min_px) {
               taille -= 1;
               el.style.fontSize = taille + "px";
             }

@@ -123,3 +123,9 @@ test("injection refuse : slot requis vide", () => {
   c.scenes[0].layers.pop();
   assert.throws(() => injecterAvec({ fixture: c }), /slot requis slot_logo vide/);
 });
+
+test("injection refuse : animation.start_ms hors de sa scène (lu comme relatif)", () => {
+  const c = structuredClone(FIXTURE);
+  c.scenes[1].text_elements[0].animation.start_ms = 400; // relatif à sc_02, donc hors [7500, 15000]
+  assert.throws(() => injecterAvec({ fixture: c }), /hors de la scène/);
+});

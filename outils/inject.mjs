@@ -182,7 +182,7 @@ export function injecter(fichierFixture, sortie) {
       exiger(ly.media_start_ms === undefined || c.assets[ly.asset_ref].kind === "still", `${quoi} : couche vidéo non gérée en T0`);
       exiger(c.assets[ly.asset_ref]?.kind === "still", `${quoi} : seules les images fixes sont gérées en T0`);
       donnees.slots.push({
-        slot: slot.slot_id, nature: "image", src: srcAsset[ly.asset_ref], box: ly.box,
+        slot: slot.slot_id, nature: "image", role: ly.role, src: srcAsset[ly.asset_ref], box: ly.box,
         z_index: ly.z_index, fit: ly.fit, opacity: ly.opacity ?? 1,
       });
     }
@@ -195,14 +195,19 @@ export function injecter(fichierFixture, sortie) {
       const f = fontParRef[t.font_ref];
       exiger(f, `${quoi} : font_ref ${t.font_ref} absent de fonts (R4)`);
       exiger(!t.background, `${quoi} : background de texte non géré en T0`);
+      exiger(
+        sc.start_ms <= t.animation.start_ms && t.animation.start_ms <= sc.start_ms + sc.duration_ms,
+        `${quoi} : animation.start_ms ${t.animation.start_ms} hors de la scène [${sc.start_ms}, ${sc.start_ms + sc.duration_ms}] — start_ms est global (É-19)`,
+      );
       donnees.slots.push({
         slot: slot.slot_id, nature: "texte", text_id: t.text_id, box: t.box, z_index: zParSlot[slot.slot_id],
         contenu: t.content, famille: f.family, poids: f.weight, style: f.style ?? "normal",
         taille_px: t.font_size_px, taille_min_px: t.min_font_size_px, interligne: t.line_height,
         max_lignes: t.max_lines, overflow: t.overflow, couleur: t.color, align: t.align,
-        // Lecture retenue (non confirmée) : animation.start_ms est un temps
-        // GLOBAL, comme l'alignement des mots auquel sync le lie (R13) —
-        // contrairement à camera.keyframes[].t_ms, déclaré relatif à la scène.
+        // animation.start_ms est un temps GLOBAL (confirmé le 28/09) : sync
+        // l'égale au start_ms d'un mot, et l'alignement est sur la timeline
+        // globale (R13). Asymétrie avec camera.keyframes[].t_ms, relatif à la
+        // scène : É-19. Confinement vérifié juste au-dessus.
         animation: {
           type: t.animation.type,
           debut_s: q(t.animation.start_ms, `${t.text_id} animation.start_ms`),
@@ -219,6 +224,7 @@ export function injecter(fichierFixture, sortie) {
 
   const donnees = {
     fps,
+    safe_area: c.safe_area,
     duree_s: duree.secondes,
     frames: duree.frame,
     polices: c.fonts.map((f) => ({ famille: f.family, poids: f.weight, style: f.style ?? "normal" })),
@@ -228,7 +234,9 @@ export function injecter(fichierFixture, sortie) {
   for (const f of ["gsap.min.js", "CustomEase.min.js"]) {
     fs.copyFileSync(path.join(RACINE, "node_modules/gsap/dist", f), path.join(sortie, f));
   }
-  fs.copyFileSync(path.join(RACINE, "runtime/hm-runtime.js"), path.join(sortie, "hm-runtime.js"));
+  for (const f of ["hm-mesure.js", "hm-runtime.js"]) {
+    fs.copyFileSync(path.join(RACINE, "runtime", f), path.join(sortie, f));
+  }
 
   const tete = `<style>
 ${faces.join("\n")}
@@ -237,6 +245,7 @@ ${faces.join("\n")}
   const fin = `<script type="application/json" id="hm-donnees">${JSON.stringify(donnees).replace(/</g, "\\u003c")}</script>
 <script src="gsap.min.js"></script>
 <script src="CustomEase.min.js"></script>
+<script src="hm-mesure.js"></script>
 <script src="hm-runtime.js"></script>`;
   const sortieHtml = html
     .replace("</head>", `${tete}\n</head>`)

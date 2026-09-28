@@ -135,3 +135,36 @@ Storyboard et Montage plan sont en amont du compilateur, hors T0.
 
 Étape 1 (socle) : si HyperFrames n'expose ni la sortie PNG ni la coupure
 du réseau, s'arrêter et le signaler au lieu de contourner.
+
+═══ 8. DÉCISIONS DU 28/09 APRÈS L'INSPECTION DE HYPERFRAMES 0.8.83 ═══
+
+Constat : sortie PNG disponible (--format png-sequence), aucune coupure
+réseau exposée. Le moteur émet de la télémétrie (posthog), complète les
+familles de police sans @font-face depuis son bundle (@fontsource/inter
+400/700/900) ou depuis Google Fonts, avec repli silencieux si l'appel
+échoue.
+
+Polices :
+- nom de famille PRIVÉ, jamais public : HM-Demo-Sans en démo,
+  HM-{client}-{rôle} en production. @font-face explicites générés depuis
+  composition.fonts[]. Règle écrite dans T11 (Template.rules.md).
+- le contrôle de la source effective de la police reste en place, en
+  défense en profondeur.
+- licence : fragment typography.fonts du Brand Pack, fidèle au schéma,
+  license.type "ofl". Il porte la correspondance nom privé → fichier →
+  licence → origine Inter. Nommé comme un fragment, pas comme un Brand Pack.
+
+Réseau, quatre couches par coût croissant :
+1. noms de famille privés + @font-face explicites
+2. HYPERFRAMES_NO_TELEMETRY et DO_NOT_TRACK
+3. espace de noms réseau vide (unshare -rn), garanti par le noyau
+4. journal des requêtes : échec si l'une sort de file:// ou de la boucle
+   locale. C'est le test des couches 1 à 3, donc un critère d'acceptation.
+Faisabilité de unshare sur Cloud Run : question de T3, non traitée ici.
+Si indisponible, les couches 1, 2 et 4 restent.
+
+--variables / data-composition-variables existent dans la 0.8.83 (le §5.1
+se trompe sur ce point), mais on ne s'en sert PAS : la composition est
+déjà résolue, l'injection produit un HTML complet et autonome, et un
+second système de variables couplerait au moteur (coût d'un changement
+de moteur, D7).

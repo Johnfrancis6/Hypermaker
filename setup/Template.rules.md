@@ -262,6 +262,14 @@ publication, par analyse statique du HTML et du CSS.
 - **Aucune valeur de marque en dur** : pas de couleur hex, `rgb()` ni nom de
   couleur, pas de `font-family` littéral. Tout passe par des variables CSS
   (`var(--brand-…)`) résolues par le compilateur depuis le Brand Pack.
+- **Familles de police sous un nom privé** : un template ne nomme jamais une
+  famille publique (`Inter`, `Montserrat`…). Il nomme une famille privée
+  (`HM-Demo-Sans`, puis `HM-{client}-{rôle}` en production), déclarée par un
+  `@font-face` explicite généré depuis `composition.fonts[]`. Le moteur ne peut
+  alors compléter la famille ni depuis son propre paquet de polices, ni depuis
+  Google Fonts. `document.fonts.check()` vrai signifie donc « notre fichier s'est
+  chargé », et un `@font-face` oublié produit un échec franc au lieu d'un repli
+  silencieux vers une homonyme publique.
 - **Aucune durée en dur** dans une animation ou une transition CSS : les durées
   viennent de la chorégraphie résolue (T8)
 - **Aucune ressource distante** : pas d'URL `http(s)` dans le HTML, le CSS ou le

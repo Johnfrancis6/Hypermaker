@@ -200,3 +200,30 @@ NOT NULL, et la liste blanche D25 est cette table).
 É-16, à trancher en T2 : typography.fonts[].asset_uri impose
 ^brand/cli_…/, faux pour le Brand Pack de démonstration de T13, qui est
 une ressource partagée. Piste : élargir comme owner.scope le fait déjà.
+
+═══ 10. DÉCISIONS DU 28/09 SUR L'ÉTAPE 2 ═══
+
+É-17, BLOQUANT POUR T2 : layer et text_element n'ont pas de slot_id. La
+liaison composition → [data-slot] se déduit par le rôle ; en T0 chaque
+rôle est unique, l'injection échoue si deux slots acceptent le même rôle
+au lieu de choisir. Correctif prévu : slot_id sur layer et text_element
+(même motif que montage_plan.scenes[].broll[].slot_id), R3 étendue à
+composition ↔ manifeste. Formulation pour le rapport : « T11 tient entre
+le manifeste et le HTML, pas entre la composition et le HTML. »
+
+É-18 : provenance.source n'a pas de valeur pour un asset de fixture ou de
+démonstration (ast_demo_* de T13 compris). Correctif : un terme ajouté à
+l'énumération, sans champ requis supplémentaire.
+
+Fixtures : JSON strictement valide + fichier compagnon
+fixture-X.omissions.json (chemin précis et raison de chaque omission).
+Validation par ajv contre le vrai schéma, en ne relâchant que les
+required déclarés. Jamais de commentaires en tête de JSON.
+
+Fixture C : le rétrécissement doit aboutir au-dessus de
+min_font_size_px. La voie de rejet de R5 se teste par un test unitaire du
+lint (boîte fabriquée), pas par une quatrième vidéo.
+
+Lint : toutes les frames (450 seeks), pas d'échantillonnage. Chronométré
+et reporté au rapport : c'est la mesure qui dira s'il faut échantillonner
+en production.

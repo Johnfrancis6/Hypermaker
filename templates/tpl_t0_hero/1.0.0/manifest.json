@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "template_id": "tpl_t0_hero",
+  "version": "1.0.0",
+  "status": "draft",
+  "name": "T0 — héros produit",
+  "created_by": "llm",
+  "format": "9:16",
+  "purpose_affinity": ["product_reveal"],
+  "duration": { "min_s": 4, "max_s": 8, "recommended_s": 7.5 },
+  "slots": [
+    {
+      "slot_id": "slot_bg",
+      "kind": "media",
+      "box": { "x": 0, "y": 0, "width": 1, "height": 1 },
+      "anchor": "center",
+      "required": true,
+      "accepts_roles": ["background"],
+      "fit": "cover",
+      "safe_area_exempt": true
+    },
+    {
+      "slot_id": "slot_subject",
+      "kind": "media",
+      "box": { "x": 0.1759, "y": 0.3333, "width": 0.6481, "height": 0.2396 },
+      "anchor": "center",
+      "required": true,
+      "accepts_roles": ["subject"],
+      "fit": "cover"
+    },
+    {
+      "slot_id": "slot_headline",
+      "kind": "text",
+      "box": { "x": 0.0741, "y": 0.2031, "width": 0.8148, "height": 0.1198 },
+      "anchor": "top_left",
+      "required": true,
+      "copy_field": "headline",
+      "text_role": "headline",
+      "type_role_hint": "display"
+    },
+    {
+      "slot_id": "slot_support",
+      "kind": "text",
+      "box": { "x": 0.0741, "y": 0.5833, "width": 0.8148, "height": 0.0625 },
+      "anchor": "top_left",
+      "required": true,
+      "copy_field": "support",
+      "text_role": "body",
+      "type_role_hint": "body"
+    },
+    {
+      "slot_id": "slot_logo",
+      "kind": "logo",
+      "box": { "x": 0.0741, "y": 0.1484, "width": 0.1852, "height": 0.0417 },
+      "anchor": "top_left",
+      "required": true,
+      "accepts_roles": ["logo"],
+      "fit": "contain"
+    }
+  ],
+  "focal_slot": "slot_subject",
+  "layer_stack": [
+    { "slot_id": "slot_bg", "z_index": 0, "parallax_tier": "far" },
+    { "slot_id": "slot_subject", "z_index": 10, "parallax_tier": "subject" },
+    { "slot_id": "slot_headline", "z_index": 20, "parallax_tier": "overlay" },
+    { "slot_id": "slot_support", "z_index": 21, "parallax_tier": "overlay" },
+    { "slot_id": "slot_logo", "z_index": 30, "parallax_tier": "overlay" }
+  ],
+  "capabilities": {
+    "camera": ["static"],
+    "depth": false,
+    "max_camera_scale": 1
+  },
+  "choreography": {
+    "beats": [
+      {
+        "beat_id": "bt_headline_in",
+        "slot_id": "slot_headline",
+        "action": "enter",
+        "at": { "mode": "scene_ratio", "scene_ratio": 0.05 },
+        "reveal_binding": "primary"
+      },
+      {
+        "beat_id": "bt_support_in",
+        "slot_id": "slot_support",
+        "action": "enter",
+        "at": { "mode": "after_beat", "after_beat_id": "bt_headline_in", "stagger_steps": 2 },
+        "reveal_binding": "secondary"
+      }
+    ],
+    "motion_budget": { "max_concurrent": 2, "settle_ratio": 0.3 },
+    "exit_policy": "hold"
+  },
+  "audio": { "voice_tail_ms": 200, "sound_cues": [] },
+  "requirements": {
+    "assets": [
+      { "role": "background", "cardinality": { "min": 1, "max": 1 }, "kinds": ["still"] },
+      { "role": "subject", "cardinality": { "min": 1, "max": 1 }, "kinds": ["still"] },
+      { "role": "logo", "cardinality": { "min": 1, "max": 1 }, "kinds": ["still"], "requires_alpha": true }
+    ],
+    "copy": {
+      "headline": { "required": true, "max_chars": 60, "max_lines": 2 },
+      "support": { "required": true, "max_chars": 90, "max_lines": 2 }
+    }
+  },
+  "render": {
+    "engine": "hyperframes",
+    "entry": "templates/tpl_t0_hero/1.0.0/index.html",
+    "engine_min_version": "0.8.83"
+  }
+}

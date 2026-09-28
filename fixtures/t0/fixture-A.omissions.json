@@ -1,0 +1,28 @@
+{
+  "omis": [
+    {
+      "chemin": "client_id",
+      "raison": "T0 n'a pas de client. Un client de démonstration est exclu : ops.client.wa_phone_e164 est NOT NULL et la table est la liste blanche (D25)."
+    },
+    {
+      "chemin": "project_id",
+      "raison": "T0 n'a pas de projet : pas de base, pas d'état."
+    },
+    {
+      "chemin": "compiled_from",
+      "raison": "Composition écrite à la main, sans storyboard, plan ni compilateur : les versions et hashes seraient inventés."
+    },
+    {
+      "chemin": "qa",
+      "raison": "qa.checklist reprend les must_show d'un storyboard validé par le client ; il n'y en a pas. qa.frame_captures sert la revue de Franco, pas le lint (qui mesure toutes les frames)."
+    },
+    {
+      "chemin": "scenes.*.storyboard_scene_hash",
+      "raison": "Pas de storyboard : le hash serait inventé."
+    },
+    {
+      "chemin": "assets.*.provenance",
+      "raison": "provenance.source n'a aucune valeur pour un placeholder fabriqué à la main (É-18). derived et library seraient faux."
+    }
+  ]
+}

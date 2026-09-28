@@ -1,0 +1,373 @@
+{
+  "schema_version": "2.0",
+  "composition_version": 1,
+  "revision_reason": "initial",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "duration_ms": 15000,
+    "background_color": "#0E1116"
+  },
+  "safe_area": {
+    "top": 269,
+    "bottom": 672,
+    "left": 65,
+    "right": 108
+  },
+  "encode": {
+    "preview": {
+      "container": "mp4",
+      "faststart": true,
+      "resolution": "1080x1920",
+      "max_bytes": 15728640,
+      "video": {
+        "codec": "h264",
+        "profile": "main",
+        "level": "4.0",
+        "pix_fmt": "yuv420p",
+        "b_frames": 0,
+        "bitrate_kbps": 6000,
+        "maxrate_kbps": 8000,
+        "bufsize_kbps": 16000,
+        "keyint": 60,
+        "preset": "medium"
+      },
+      "audio": {
+        "codec": "aac",
+        "bitrate_kbps": 128,
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    },
+    "master": {
+      "container": "mp4",
+      "faststart": true,
+      "resolution": "1080x1920",
+      "max_bytes": 104857600,
+      "video": {
+        "codec": "h264",
+        "profile": "high",
+        "level": "4.1",
+        "pix_fmt": "yuv420p",
+        "b_frames": 2,
+        "bitrate_kbps": 16000,
+        "maxrate_kbps": 20000,
+        "bufsize_kbps": 40000,
+        "keyint": 60,
+        "preset": "medium"
+      },
+      "audio": {
+        "codec": "aac",
+        "bitrate_kbps": 128,
+        "sample_rate": 48000,
+        "channels": 2
+      }
+    }
+  },
+  "fonts": [
+    {
+      "font_ref": "fnt_demo_sans_400",
+      "family": "HM-Demo-Sans",
+      "weight": 400,
+      "style": "normal",
+      "uri": "assets/fonts/Inter-Regular.woff2",
+      "format": "woff2"
+    },
+    {
+      "font_ref": "fnt_demo_sans_700",
+      "family": "HM-Demo-Sans",
+      "weight": 700,
+      "style": "normal",
+      "uri": "assets/fonts/Inter-Bold.woff2",
+      "format": "woff2"
+    }
+  ],
+  "assets": {
+    "ast_t0_fond_basse_def": {
+      "uri": "fixtures/t0/placeholders/fond_degrade_basse_def.png",
+      "kind": "still",
+      "width": 540,
+      "height": 960,
+      "bytes": 12262,
+      "checksum": "1bd1e0e097953b1db8b9fe0e21d47436abbdd733aebcb78a0d9f28f19f52a4e2",
+      "has_alpha": false,
+      "owner": {
+        "scope": "shared"
+      }
+    },
+    "ast_t0_sujet_basse_def": {
+      "uri": "fixtures/t0/placeholders/sujet_basse_def.png",
+      "kind": "still",
+      "width": 350,
+      "height": 230,
+      "bytes": 1596,
+      "checksum": "9982946e5804be69e15e4257fd380a62fe7ed2bf4983ed39afb1f78529bc2b92",
+      "has_alpha": false,
+      "owner": {
+        "scope": "shared"
+      }
+    },
+    "ast_t0_logo_alpha": {
+      "uri": "fixtures/t0/placeholders/logo_alpha.png",
+      "kind": "still",
+      "width": 400,
+      "height": 160,
+      "bytes": 1434,
+      "checksum": "15c91da666f8b54373a1beb2c9d9f5ec119bd8e5a477ac9321f92df6c79f3f9b",
+      "has_alpha": true,
+      "owner": {
+        "scope": "shared"
+      }
+    }
+  },
+  "scenes": [
+    {
+      "scene_id": "sc_01",
+      "template_id": "tpl_t0_hero",
+      "template_version": "1.0.0",
+      "start_ms": 0,
+      "duration_ms": 7500,
+      "layers": [
+        {
+          "layer_id": "ly_sc_01_bg",
+          "role": "background",
+          "asset_ref": "ast_t0_fond_basse_def",
+          "z_index": 0,
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 1080,
+            "height": 1920
+          },
+          "fit": "cover"
+        },
+        {
+          "layer_id": "ly_sc_01_subject",
+          "role": "subject",
+          "asset_ref": "ast_t0_sujet_basse_def",
+          "z_index": 10,
+          "box": {
+            "x": 190,
+            "y": 640,
+            "width": 700,
+            "height": 460
+          },
+          "fit": "cover"
+        },
+        {
+          "layer_id": "ly_sc_01_logo",
+          "role": "logo",
+          "asset_ref": "ast_t0_logo_alpha",
+          "z_index": 30,
+          "box": {
+            "x": 80,
+            "y": 285,
+            "width": 200,
+            "height": 80
+          },
+          "fit": "contain"
+        }
+      ],
+      "text_elements": [
+        {
+          "text_id": "txt_sc_01_headline",
+          "role": "headline",
+          "content": "Des soins pensés pour les peaux sensibles, sans parfum",
+          "font_ref": "fnt_demo_sans_700",
+          "box": {
+            "x": 80,
+            "y": 390,
+            "width": 880,
+            "height": 230
+          },
+          "font_size_px": 96,
+          "min_font_size_px": 48,
+          "line_height": 1.1,
+          "max_lines": 2,
+          "overflow": "shrink",
+          "color": "#FFFFFF",
+          "align": "left",
+          "animation": {
+            "type": "fade_in",
+            "start_ms": 400,
+            "duration_ms": 600,
+            "easing": [
+              0.16,
+              1,
+              0.3,
+              1
+            ]
+          }
+        },
+        {
+          "text_id": "txt_sc_01_support",
+          "role": "body",
+          "content": "Formule testée sous contrôle dermatologique, flacon recyclable et rechargeable",
+          "font_ref": "fnt_demo_sans_400",
+          "box": {
+            "x": 80,
+            "y": 1120,
+            "width": 880,
+            "height": 120
+          },
+          "font_size_px": 44,
+          "min_font_size_px": 32,
+          "line_height": 1.25,
+          "max_lines": 2,
+          "overflow": "shrink",
+          "color": "#9AA4B2",
+          "align": "left",
+          "animation": {
+            "type": "fade_in",
+            "start_ms": 800,
+            "duration_ms": 600,
+            "easing": [
+              0.16,
+              1,
+              0.3,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scene_id": "sc_02",
+      "template_id": "tpl_t0_hero",
+      "template_version": "1.0.0",
+      "start_ms": 7500,
+      "duration_ms": 7500,
+      "layers": [
+        {
+          "layer_id": "ly_sc_02_bg",
+          "role": "background",
+          "asset_ref": "ast_t0_fond_basse_def",
+          "z_index": 0,
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 1080,
+            "height": 1920
+          },
+          "fit": "cover"
+        },
+        {
+          "layer_id": "ly_sc_02_subject",
+          "role": "subject",
+          "asset_ref": "ast_t0_sujet_basse_def",
+          "z_index": 10,
+          "box": {
+            "x": 190,
+            "y": 640,
+            "width": 700,
+            "height": 460
+          },
+          "fit": "cover"
+        },
+        {
+          "layer_id": "ly_sc_02_logo",
+          "role": "logo",
+          "asset_ref": "ast_t0_logo_alpha",
+          "z_index": 30,
+          "box": {
+            "x": 80,
+            "y": 285,
+            "width": 200,
+            "height": 80
+          },
+          "fit": "contain"
+        }
+      ],
+      "text_elements": [
+        {
+          "text_id": "txt_sc_02_headline",
+          "role": "headline",
+          "content": "La routine complète tient dans une seule trousse",
+          "font_ref": "fnt_demo_sans_700",
+          "box": {
+            "x": 80,
+            "y": 390,
+            "width": 880,
+            "height": 230
+          },
+          "font_size_px": 96,
+          "min_font_size_px": 48,
+          "line_height": 1.1,
+          "max_lines": 2,
+          "overflow": "shrink",
+          "color": "#FFFFFF",
+          "align": "left",
+          "animation": {
+            "type": "fade_in",
+            "start_ms": 7900,
+            "duration_ms": 600,
+            "easing": [
+              0.16,
+              1,
+              0.3,
+              1
+            ]
+          }
+        },
+        {
+          "text_id": "txt_sc_02_support",
+          "role": "body",
+          "content": "Trois gestes le matin, deux le soir",
+          "font_ref": "fnt_demo_sans_400",
+          "box": {
+            "x": 80,
+            "y": 1120,
+            "width": 880,
+            "height": 120
+          },
+          "font_size_px": 44,
+          "min_font_size_px": 32,
+          "line_height": 1.25,
+          "max_lines": 2,
+          "overflow": "shrink",
+          "color": "#9AA4B2",
+          "align": "left",
+          "animation": {
+            "type": "fade_in",
+            "start_ms": 8300,
+            "duration_ms": 600,
+            "easing": [
+              0.16,
+              1,
+              0.3,
+              1
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "transition_id": "tr_01_02",
+      "from_scene": "sc_01",
+      "to_scene": "sc_02",
+      "type": "fade",
+      "start_ms": 7300,
+      "duration_ms": 400,
+      "easing": [
+        0.4,
+        0,
+        0.2,
+        1
+      ]
+    }
+  ],
+  "audio": {
+    "loudness": {
+      "target_lufs": -14,
+      "true_peak_dbtp": -1,
+      "tolerance_lu": 1
+    },
+    "ducking_db": -12,
+    "sfx_gain_under_voice_db": -6,
+    "sfx": [],
+    "silent_fallback": true
+  }
+}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+  tpl_t0_hero 1.0.0 — structure seule (T11).
+  Aucune couleur, police, durée, position ni texte ici : tout vient de la
+  composition, injecté avant capture. La scène ci-dessous est un modèle,
+  cloné une fois par scène de la composition.
+-->
+<style>
+  html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: var(--brand-fond); }
+  #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+  .hm-scene { position: absolute; inset: 0; }
+  [data-slot] { position: absolute; margin: 0; box-sizing: border-box; }
+  img[data-slot] { display: block; }
+  .hm-text { overflow: hidden; overflow-wrap: break-word; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="root">
+  <template id="hm-scene">
+    <section class="hm-scene">
+      <img data-slot="slot_bg" alt="">
+      <img data-slot="slot_subject" alt="">
+      <p data-slot="slot_headline" class="hm-text"></p>
+      <p data-slot="slot_support" class="hm-text"></p>
+      <img data-slot="slot_logo" alt="">
+    </section>
+  </template>
+</div>
+</body>
+</html>

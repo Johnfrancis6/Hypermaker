@@ -150,9 +150,7 @@ Polices :
   composition.fonts[]. Règle écrite dans T11 (Template.rules.md).
 - le contrôle de la source effective de la police reste en place, en
   défense en profondeur.
-- licence : fragment typography.fonts du Brand Pack, fidèle au schéma,
-  license.type "ofl". Il porte la correspondance nom privé → fichier →
-  licence → origine Inter. Nommé comme un fragment, pas comme un Brand Pack.
+- licence : AUCUN fragment de Brand Pack (décision révisée, voir §9).
 
 Réseau, quatre couches par coût croissant :
 1. noms de famille privés + @font-face explicites
@@ -168,3 +166,37 @@ se trompe sur ce point), mais on ne s'en sert PAS : la composition est
 déjà résolue, l'injection produit un HTML complet et autonome, et un
 second système de variables couplerait au moteur (coût d'un changement
 de moteur, D7).
+
+═══ 9. DÉCISIONS DU 28/09 APRÈS LE TEST SANS RÉSEAU ═══
+
+Mesuré : le rendu aboutit sous unshare -rn avec la boucle locale active
+(8 s, 30 frames, pixels identiques au rendu avec réseau). Il échoue si la
+boucle locale est coupée (ENETUNREACH) : le moteur sert les fichiers par
+un serveur HTTP local et pilote Chrome par la boucle locale.
+
+Couche 4, formulée par la négative : toute requête dont l'hôte n'est ni
+127.0.0.1 ni ::1 fait échouer le rendu ; tous les hôtes sont journalisés.
+
+Chrome n'est pas épinglé par hyperframes@0.8.83 : le moteur télécharge
+son Chrome au premier rendu (~/.cache/hyperframes/chrome, 12 min ici ;
+HeadlessChrome/152.0.7977.30 mesuré). Conséquences :
+- ce qui est épinglé en production, c'est l'image du conteneur.
+  ops.template.moteur_version seul ne reproduit pas un rendu : il faut le
+  couple moteur + Chrome.
+- la version de Chrome figure dans le rapport T0 et dans chaque relevé
+  de déterminisme.
+- l'image de job-produce DOIT embarquer Chrome : 12 min de téléchargement
+  font dépasser le budget de 20 min d'ASSETS_READY, et le watchdog
+  conclurait à un job mort. Condition de fonctionnement, pas optimisation.
+
+Licence de police : la consigne « dans le manifeste » était une erreur
+de catégorie (B4 ne gouverne que les Brand Packs, T0 n'en a pas). Le
+commit 3d7d614 (fichiers, OFL.txt, origine et sha256) suffit. Pas de
+fragment. La correspondance HM-Demo-Sans → fichier → OFL → Inter 4.1 vit
+dans un commentaire à côté du @font-face ; elle rejoindra un vrai Brand
+Pack en T2. Un client de démonstration est impossible (wa_phone_e164
+NOT NULL, et la liste blanche D25 est cette table).
+
+É-16, à trancher en T2 : typography.fonts[].asset_uri impose
+^brand/cli_…/, faux pour le Brand Pack de démonstration de T13, qui est
+une ressource partagée. Piste : élargir comme owner.scope le fait déjà.

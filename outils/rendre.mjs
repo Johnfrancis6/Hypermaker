@@ -57,7 +57,14 @@ export async function rendre(dossier, dossierPng, { verifier = true, isoler = tr
 
   fs.rmSync(dossierPng, { recursive: true, force: true });
   const trace = `${dossierPng}.strace`;
-  const moteur = [HYPERFRAMES, "render", path.resolve(dossier), "--format", "png-sequence", "--fps", String(donnees.fps), "-o", path.resolve(dossierPng)];
+  // --workers 1 : le mode « auto » du moteur calibre le nombre de workers sur
+  // la vitesse mesurée, et le découpage des frames entre pages Chrome change
+  // les pixels (1 à 2 niveaux pendant les fondus d'opacité). Mesuré sur B :
+  // 1 worker → a194fac8 (deux fois), 3 → 51d1836d, auto → c2c74284 une fois
+  // sur trois. Un seul worker parcourt les frames dans l'ordre, comme la passe
+  // avant du lint, et ne dépend pas du nombre de cœurs de la machine. Il est
+  // aussi plus rapide ici : 16 s contre 21 à 28 s en auto.
+  const moteur = [HYPERFRAMES, "render", path.resolve(dossier), "--format", "png-sequence", "--fps", String(donnees.fps), "--workers", "1", "-o", path.resolve(dossierPng)];
   const commande = isoler ? ["unshare", "-rn", "sh", "-c", 'ip link set lo up && exec "$@"', "sh", ...moteur] : moteur;
   const debut = Date.now();
   const r = spawnSync("strace", ["-f", "-qq", "--seccomp-bpf", "-e", "trace=socket,connect,close,write,writev,sendto,sendmsg,sendmmsg,dup,dup2,dup3,clone,clone3,fork,vfork", "-o", trace, ...commande], {

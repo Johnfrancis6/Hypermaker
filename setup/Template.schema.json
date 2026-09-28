@@ -1,0 +1,548 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/template.v1.json",
+  "title": "Template — manifeste de structure et de chorégraphie (AVANT-PREMIÈRE)",
+  "$comment": "STATUT : v1, réécrite le 26 septembre 2026 (décisions D1–D36), à affiner contre le premier template réel (T0, T0b). Un template = un fichier HTML à emplacements déclarés (data-slot) + ce manifeste (D34). Il est une STRUCTURE et un RYTHME : ni couleur, ni police, ni son, ni durée absolue (Brand Pack) ; ni texte, ni script, ni asset (storyboard) ; ni caméra choisie, ni transition, ni intensité, ni musique (Monteur) ; ni encodage, ni zone de sécurité (constantes du système). Ressource PARTAGÉE entre tous les clients (D30). Le code calcule les templates éligibles pour une scène, le Monteur choisit dans cette liste fermée (D21). Validé par template.rules.md (T1–T13).",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "template_id", "version", "status", "name", "created_by", "format", "purpose_affinity", "duration", "slots", "focal_slot", "layer_stack", "capabilities", "choreography", "audio", "requirements", "render"],
+
+  "properties": {
+    "schema_version": { "const": "1.0" },
+
+    "template_id": { "type": "string", "pattern": "^tpl_[a-z0-9_]{3,40}$" },
+
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "$comment": "Semver. Couvre le manifeste ET le HTML. Un template publié est immuable (T1)."
+    },
+
+    "status": {
+      "enum": ["draft", "pending_review", "published", "deprecated"],
+      "$comment": "pending_review = en file de validation (D15), en attente de l'approbation de Franco. deprecated = compilable pour l'existant, hors ensemble éligible."
+    },
+
+    "name": { "type": "string", "minLength": 1, "maxLength": 80,
+      "$comment": "Nom générique du style. Jamais le nom d'un client (T13)." },
+
+    "created_by": {
+      "enum": ["llm", "franco"],
+      "$comment": "Auteur de la version. Dans les deux cas, la publication exige l'approbation de Franco."
+    },
+
+    "format": {
+      "const": "9:16",
+      "$comment": "D12. Un seul format : la géométrie des slots est pensée pour le vertical."
+    },
+
+    "purpose_affinity": {
+      "type": "array",
+      "items": { "enum": ["hook", "context", "product_reveal", "feature", "proof", "offer", "cta", "closing"] },
+      "minItems": 1,
+      "uniqueItems": true,
+      "$comment": "Premier filtre de l'ensemble éligible (T6). Sert aussi au calcul des limites injectées dans le prompt du Storyboard (T10)."
+    },
+
+    "duration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_s", "max_s"],
+      "$comment": "Bornes dans lesquelles la chorégraphie reste lisible. Comparées à la durée RÉELLE de la scène, dérivée de la voix off (D20, T6). min_s = le plus court segment parlé que le template peut accueillir.",
+      "properties": {
+        "min_s": { "type": "number", "minimum": 1.0, "maximum": 12.0 },
+        "max_s": { "type": "number", "minimum": 1.0, "maximum": 12.0 },
+        "recommended_s": { "type": "number", "minimum": 1.0, "maximum": 12.0 }
+      }
+    },
+
+    "slots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/slot" },
+      "$comment": "Plafonds de la composition (T2) : 6 slots media ou logo, 4 slots texte au plus.",
+      "allOf": [
+        { "contains": { "properties": { "kind": { "const": "text" } } }, "minContains": 0, "maxContains": 4 },
+        { "contains": { "properties": { "kind": { "enum": ["media", "logo"] } } }, "minContains": 0, "maxContains": 6 }
+      ]
+    },
+
+    "focal_slot": {
+      "type": "string",
+      "pattern": "^slot_[a-z0-9_]{2,32}$",
+      "$comment": "UN seul élément domine la scène. Doit être un slot media ou logo, requis (T2). Reçoit le mouvement de caméra principal et l'entrée la plus marquée."
+    },
+
+    "layer_stack": {
+      "type": "array",
+      "minItems": 1,
+      "$comment": "Ordre de profondeur FIGÉ par le template. Un logo est toujours en tier overlay (T3).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot_id", "z_index", "parallax_tier"],
+        "properties": {
+          "slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_]{2,32}$" },
+          "z_index": { "type": "integer", "minimum": 0, "maximum": 99 },
+          "parallax_tier": {
+            "enum": ["far", "mid", "subject", "overlay"],
+            "$comment": "Niveau symbolique. Le facteur numérique vient de parallax_spread du Brand Pack."
+          }
+        }
+      }
+    },
+
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["camera", "depth", "max_camera_scale"],
+      "$comment": "Ce que le template SUPPORTE. Ces listes bornent les décisions du Monteur pour la scène : un choix hors capacités est rejeté par les règles du montage_plan (T6).",
+      "properties": {
+        "camera": {
+          "type": "array",
+          "items": { "enum": ["static", "push_in", "pull_back", "drift", "orbit"] },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "depth": { "type": "boolean",
+          "$comment": "true = le template supporte la parallaxe (au moins deux tiers distincts peuplés)." },
+        "effects": {
+          "type": "array",
+          "items": { "enum": ["sparkle", "confetti"] },
+          "uniqueItems": true,
+          "$comment": "Mêmes valeurs que effect.type de la composition."
+        },
+        "max_camera_scale": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 3.0,
+          "$comment": "Plafond de zoom au-delà duquel un slot texte, logo ou appel à l'action sortirait de la zone de sécurité (T4). Obligatoire : il sert au calcul de T4 et T7."
+        }
+      }
+    },
+
+    "choreography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beats", "motion_budget"],
+      "$comment": "Ordonnancement relatif des entrées. Le rythme est relatif à la scène, jamais en millisecondes absolues, sans quoi le template ne survit pas à une durée dérivée de la voix off.",
+      "properties": {
+        "beats": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/beat" }
+        },
+        "motion_budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_concurrent", "settle_ratio"],
+          "properties": {
+            "max_concurrent": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4,
+              "$comment": "Éléments animés au même instant, hors caméra et effets. 2 est un bon plafond."
+            },
+            "settle_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.8,
+              "$comment": "Fraction de la scène au repos après la dernière entrée. Avec voix off, c'est le temps où la voix porte le message sur une image stable ; sans voix off, c'est le seul temps de lecture."
+            }
+          }
+        },
+        "exit_policy": {
+          "enum": ["hold", "fade_all", "stagger_out"],
+          "default": "hold",
+          "$comment": "hold = la transition choisie par le Monteur gère la sortie. Évite le fondu double."
+        }
+      }
+    },
+
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["voice_tail_ms", "sound_cues"],
+      "$comment": "Le template ne contient AUCUN son (T12). Il déclare où un son structurel peut tomber ; le son est résolu depuis le jeu de sons du Brand Pack. Les effets sémantiques relèvent du Monteur.",
+      "properties": {
+        "voice_tail_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "$comment": "Respiration minimale après le dernier mot de la scène. Reprise dans audio.voiceover.tail_ms de la composition (R13)."
+        },
+        "sound_cues": {
+          "type": "array",
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/sound_cue" },
+          "$comment": "Au plus 4 par template, au plus 1 par beat (vérifié par T12)."
+        }
+      }
+    },
+
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assets", "copy"],
+      "$comment": "Contrat d'entrée du template. Sert au calcul de l'ensemble éligible (T6, T7) et aux limites injectées dans le prompt du Storyboard (T10).",
+      "properties": {
+        "assets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "cardinality", "kinds"],
+            "properties": {
+              "role": { "enum": ["subject", "background", "logo", "supporting"] },
+              "cardinality": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["min", "max"],
+                "properties": {
+                  "min": { "type": "integer", "minimum": 0 },
+                  "max": { "type": "integer", "minimum": 1 }
+                }
+              },
+              "kinds": {
+                "type": "array",
+                "items": { "enum": ["still", "video", "sequence_360", "vector"] },
+                "minItems": 1,
+                "uniqueItems": true
+              },
+              "min_source_scale": {
+                "type": "number",
+                "minimum": 1.0,
+                "default": 1.0,
+                "$comment": "1,5 pour tout slot soumis à un zoom ou à la parallaxe (T7)."
+              },
+              "requires_alpha": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "copy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "headline": { "$ref": "#/$defs/copy_requirement" },
+            "support": { "$ref": "#/$defs/copy_requirement" }
+          }
+        }
+      }
+    },
+
+    "degradation": {
+      "type": "array",
+      "maxItems": 8,
+      "$comment": "Chemin de dégradation DÉCLARÉ, évalué en une seule passe (T9). Toute dégradation appliquée est journalisée et signalée à Franco avec l'aperçu.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["when", "action"],
+        "properties": {
+          "when": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["condition", "slot_id"],
+            "properties": {
+              "condition": { "enum": ["slot_empty", "text_too_long", "asset_below_min_scale", "asset_wrong_ratio", "asset_missing_alpha"] },
+              "slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_]{2,32}$" }
+            }
+          },
+          "action": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+              "type": { "enum": ["collapse", "substitute", "expand_sibling", "solid_fill", "reject"] },
+              "target_slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_]{2,32}$" },
+              "fallback_token": { "type": "string",
+                "$comment": "Token du Brand Pack, jamais une couleur littérale." }
+            },
+            "allOf": [
+              {
+                "if": { "properties": { "type": { "enum": ["substitute", "expand_sibling"] } } },
+                "then": { "required": ["target_slot_id"] }
+              },
+              {
+                "if": { "properties": { "type": { "const": "solid_fill" } } },
+                "then": { "required": ["fallback_token"] }
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "render": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "entry"],
+      "$comment": "Pointeur vers l'implémentation HTML (D34). Seule partie liée au moteur : c'est la frontière qui doit rester déplaçable si HyperFrames déçoit.",
+      "properties": {
+        "engine": { "enum": ["hyperframes"] },
+        "entry": {
+          "type": "string",
+          "pattern": "^templates/tpl_[a-z0-9_]{3,40}/[0-9]+\\.[0-9]+\\.[0-9]+/index\\.html$",
+          "$comment": "Chemin du fichier HTML versionné. Chaque data-slot doit correspondre à un slot du manifeste (T11)."
+        },
+        "entry_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "$comment": "Hash du HTML, enregistré à la publication. Garantit que le fichier référencé par une version publiée n'a pas changé (T1)."
+        },
+        "engine_min_version": { "type": "string" }
+      }
+    },
+
+    "demo_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["brand_pack_id", "copy", "assets"],
+      "$comment": "Contenu neutre de démonstration (T13). Compilé et rendu à la publication : doit passer toutes les règles de la composition, et produit l'extrait de 5 s montré aux clients.",
+      "properties": {
+        "brand_pack_id": {
+          "type": "string",
+          "pattern": "^bp_demo[a-z0-9_]{0,26}$",
+          "$comment": "Brand Pack de démonstration uniquement. Jamais celui d'un client (D30)."
+        },
+        "copy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "headline": { "type": "string", "minLength": 1, "maxLength": 120 },
+            "support": { "type": "string", "minLength": 1, "maxLength": 120 }
+          }
+        },
+        "assets": {
+          "type": "object",
+          "minProperties": 1,
+          "$comment": "slot_id → asset de démonstration, stocké dans la bibliothèque partagée.",
+          "propertyNames": { "pattern": "^slot_[a-z0-9_]{2,32}$" },
+          "additionalProperties": { "type": "string", "pattern": "^ast_demo_[a-z0-9_]{2,36}$" }
+        },
+        "voiceover_script": {
+          "type": "string",
+          "maxLength": 400,
+          "pattern": "^[^0-9%€$£¥#@&*+=/\\\\<>|_~^]*$",
+          "$comment": "Facultatif. Présent si le template déclare un beat on_word, pour vérifier le calage sur la voix."
+        }
+      }
+    },
+
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approved_at", "audit_id"],
+      "$comment": "Approbation de Franco par commande admin (D29), avec entrée dans le journal d'audit. Obligatoire pour un template publié (T13).",
+      "properties": {
+        "approved_at": { "type": "string", "format": "date-time" },
+        "audit_id": { "type": "string", "pattern": "^aud_[a-z0-9]{6,32}$" }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "enum": ["pending_review", "published", "deprecated"] } } },
+      "then": { "required": ["demo_fixture"] }
+    },
+    {
+      "if": { "properties": { "status": { "enum": ["published", "deprecated"] } } },
+      "then": {
+        "required": ["approval"],
+        "properties": { "render": { "required": ["entry_sha256"] } }
+      }
+    }
+  ],
+
+  "$defs": {
+
+    "fraction_box": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "$comment": "En fractions du canvas. Le template reste indépendant de la résolution : l'aperçu peut être encodé en 720×1280.",
+      "properties": {
+        "x": { "type": "number", "minimum": -0.5, "maximum": 1.5 },
+        "y": { "type": "number", "minimum": -0.5, "maximum": 1.5 },
+        "width": { "type": "number", "minimum": 0.01, "maximum": 2 },
+        "height": { "type": "number", "minimum": 0.01, "maximum": 2 }
+      }
+    },
+
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slot_id", "kind", "box", "required"],
+      "properties": {
+        "slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_]{2,32}$",
+          "$comment": "Doit correspondre à exactement un élément data-slot du HTML (T11)." },
+
+        "kind": { "enum": ["media", "text", "logo"] },
+
+        "box": { "$ref": "#/$defs/fraction_box",
+          "$comment": "Pour text et logo : entièrement contenue dans la zone de sécurité, y compris à max_camera_scale (T4)." },
+
+        "anchor": {
+          "enum": ["top_left", "top_center", "top_right", "center_left", "center", "center_right", "bottom_left", "bottom_center", "bottom_right"],
+          "default": "center"
+        },
+
+        "required": { "type": "boolean" },
+
+        "grid_aligned": { "type": "boolean", "default": true },
+
+        "accepts_roles": {
+          "type": "array",
+          "items": { "enum": ["subject", "background", "logo", "supporting"] },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+
+        "copy_field": {
+          "enum": ["headline", "support"],
+          "$comment": "Lie le slot au champ correspondant du storyboard."
+        },
+
+        "text_role": {
+          "enum": ["headline", "body", "price", "cta", "caption"],
+          "$comment": "Rôle structurel repris dans text_element.role de la composition. cta soumet le slot aux contraintes d'appel à l'action (T4)."
+        },
+
+        "type_role_hint": {
+          "enum": ["display", "headline", "body", "caption"],
+          "$comment": "Rôle typographique par défaut. emphasis_map du Brand Pack peut le surclasser, jamais le descendre sous caption."
+        },
+
+        "over_media": { "type": "boolean", "default": false,
+          "$comment": "Déclenche on_image_policy du Brand Pack (contraste sur image, R8)." },
+
+        "fit": { "enum": ["cover", "contain"], "default": "cover" },
+
+        "safe_area_exempt": {
+          "type": "boolean",
+          "default": false,
+          "$comment": "Réservé aux médias de fond. Interdit sur text et logo (T4)."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "text" } } },
+          "then": {
+            "required": ["copy_field", "text_role"],
+            "not": { "required": ["accepts_roles"] },
+            "properties": { "safe_area_exempt": { "const": false } }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "enum": ["media", "logo"] } } },
+          "then": {
+            "required": ["accepts_roles"],
+            "not": { "anyOf": [ { "required": ["copy_field"] }, { "required": ["text_role"] } ] }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "logo" } } },
+          "then": { "properties": { "safe_area_exempt": { "const": false } } }
+        }
+      ]
+    },
+
+    "copy_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "max_chars"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "max_chars": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 120,
+          "$comment": "Remonté au PROMPT du Storyboard (T10), pas seulement vérifié après coup."
+        },
+        "max_lines": { "type": "integer", "minimum": 1, "maximum": 4 }
+      }
+    },
+
+    "beat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["beat_id", "slot_id", "action", "at"],
+      "properties": {
+        "beat_id": { "type": "string", "pattern": "^bt_[a-z0-9_]{2,32}$" },
+
+        "slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_]{2,32}$" },
+
+        "action": { "enum": ["enter", "emphasize", "exit"] },
+
+        "at": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "$comment": "Timing RELATIF (T8). on_word cale le beat sur un mot de la voix off, choisi par le Monteur ; sans voix off, fallback s'applique.",
+          "properties": {
+            "mode": { "enum": ["scene_ratio", "after_beat", "on_word"] },
+            "scene_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "after_beat_id": { "type": "string", "pattern": "^bt_[a-z0-9_]{2,32}$" },
+            "stagger_steps": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 6,
+              "default": 1,
+              "$comment": "La durée d'un pas vient de stagger_ms du Brand Pack."
+            },
+            "fallback": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode"],
+              "$comment": "Obligatoire pour on_word : position du beat quand la vidéo n'a pas de voix off ou que le Monteur ne désigne aucun mot.",
+              "properties": {
+                "mode": { "enum": ["scene_ratio", "after_beat"] },
+                "scene_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+                "after_beat_id": { "type": "string", "pattern": "^bt_[a-z0-9_]{2,32}$" },
+                "stagger_steps": { "type": "integer", "minimum": 0, "maximum": 6, "default": 1 }
+              },
+              "allOf": [
+                { "if": { "properties": { "mode": { "const": "scene_ratio" } } }, "then": { "required": ["scene_ratio"] } },
+                { "if": { "properties": { "mode": { "const": "after_beat" } } }, "then": { "required": ["after_beat_id"] } }
+              ]
+            }
+          },
+          "allOf": [
+            { "if": { "properties": { "mode": { "const": "scene_ratio" } } }, "then": { "required": ["scene_ratio"] } },
+            { "if": { "properties": { "mode": { "const": "after_beat" } } }, "then": { "required": ["after_beat_id"] } },
+            { "if": { "properties": { "mode": { "const": "on_word" } } }, "then": { "required": ["fallback"] }, "else": { "not": { "required": ["fallback"] } } }
+          ]
+        },
+
+        "reveal_binding": {
+          "enum": ["primary", "secondary"],
+          "default": "secondary",
+          "$comment": "primary reçoit l'intensité choisie par le Monteur pour la scène ; secondary est rabaissé d'un cran (T8)."
+        }
+      }
+    },
+
+    "sound_cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cue_id", "event"],
+      "$comment": "Point d'accroche d'un son structurel. Le son réel vient du jeu de sons du Brand Pack pour ce type d'événement (R14 de la composition, origin = structural).",
+      "properties": {
+        "cue_id": { "type": "string", "pattern": "^cue_[a-z0-9_]{2,32}$" },
+        "event": { "enum": ["text_in", "media_in", "logo_in", "emphasis", "scene_out"] },
+        "beat_id": {
+          "type": "string",
+          "pattern": "^bt_[a-z0-9_]{2,32}$",
+          "$comment": "Beat déclencheur. Absent pour scene_out, qui s'accroche à la frontière de sortie."
+        }
+      },
+      "if": { "properties": { "event": { "const": "scene_out" } } },
+      "then": { "not": { "required": ["beat_id"] } },
+      "else": { "required": ["beat_id"] }
+    }
+  }
+}

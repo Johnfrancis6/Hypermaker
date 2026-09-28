@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/montage_plan.v1.json",
+  "title": "Montage plan — contrat de décisions (sortie agent Monteur)",
+  "$comment": "Couche DÉCISION, v1 (26 septembre 2026, décisions D1–D36). Nouveau contrat introduit par D21 : Monteur (LLM) → montage_plan.json → validateur → compilateur déterministe → composition.json. Contient UNIQUEMENT des choix pris dans des listes fermées : template, intensité, caméra, profondeur, transition, emphase calée sur un mot, B-roll, effet, son sémantique, musique. Aucune valeur résolue (pixel, milliseconde, hex, dB, courbe) : leur résolution appartient au compilateur, depuis le Brand Pack et les templates. Aucune dépense : le plan ne peut référencer qu'un asset déjà existant. Chaque décision porte un decision_id repris dans composition.plan_decision_ref (R3). Produit APRÈS la voix off : les durées de scène sont connues. Validé par montage_plan.rules.md (M1–M15).",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "client_id", "montage_plan_version", "revision_reason", "inputs", "music", "scenes", "transitions"],
+
+  "properties": {
+    "schema_version": { "const": "1.0" },
+
+    "project_id": { "type": "string", "pattern": "^proj_[a-z0-9]{6,32}$" },
+
+    "client_id": {
+      "type": "string",
+      "pattern": "^cli_[a-z0-9]{6,32}$",
+      "$comment": "Tout asset référencé appartient à ce client ou à la bibliothèque partagée (M10, M11, D30)."
+    },
+
+    "montage_plan_version": { "type": "integer", "minimum": 1 },
+
+    "revision_reason": {
+      "enum": ["initial", "review_rework", "correction"],
+      "$comment": "review_rework : Franco a refusé l'aperçu, nouveau montage sans regénération (retour à ASSETS_READY). correction : correction factuelle dans les 7 jours (D26). Mêmes valeurs que la composition."
+    },
+
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parent_version"],
+      "$comment": "Obligatoire dès que revision_reason ≠ initial (M13).",
+      "properties": {
+        "parent_version": { "type": "integer", "minimum": 1 },
+        "reviewer_feedback": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "$comment": "Motif du refus de Franco, verbatim. Obligatoire pour review_rework. Traduit par le Monteur via la table du flou (\"plus dynamique\" → intensité, transitions)."
+        }
+      }
+    },
+
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storyboard_version", "storyboard_hash", "brand_pack_id", "brand_pack_version", "template_library_version", "audio_library_version", "menu_hash"],
+      "$comment": "Tout ce qui a déterminé le menu offert au Monteur. Sans ce bloc, un plan ne peut être ni revalidé ni rejoué (M1).",
+      "properties": {
+        "storyboard_version": { "type": "integer", "minimum": 1 },
+        "storyboard_hash": {
+          "$ref": "#/$defs/sha256",
+          "$comment": "Hash du storyboard complet. Doit correspondre à une validation client enregistrée (S11)."
+        },
+        "brand_pack_id": { "type": "string", "pattern": "^bp_[a-z0-9]{6,32}$" },
+        "brand_pack_version": { "type": "integer", "minimum": 1 },
+        "template_library_version": { "$ref": "#/$defs/semver" },
+        "audio_library_version": { "$ref": "#/$defs/semver" },
+        "voiceover_alignment_hash": {
+          "$ref": "#/$defs/sha256",
+          "$comment": "Hash de l'alignement mot à mot. Présent si le storyboard a une voix off : les durées de scène et les word_ref en dépendent (D20)."
+        },
+        "menu_hash": {
+          "$ref": "#/$defs/sha256",
+          "$comment": "Hash du menu fermé calculé par le code et transmis au Monteur (M3). Un plan n'est valide que contre CE menu."
+        }
+      }
+    },
+
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "mode"],
+      "$comment": "Choix de piste dans la bibliothèque partagée (M12). mode = none obligatoire si le storyboard n'a pas demandé de musique.",
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/decision_id" },
+        "mode": { "enum": ["track", "none"] },
+        "mood": {
+          "type": "string",
+          "pattern": "^mood_[a-z0-9_]{2,32}$",
+          "$comment": "Ambiance choisie, dans brand_pack.music.allowed_moods."
+        },
+        "asset_ref": {
+          "type": "string",
+          "pattern": "^ast_[a-z0-9_]{3,40}$",
+          "$comment": "Piste taguée avec cette ambiance, non livrée à un autre client sur la période configurée (D32)."
+        },
+        "why": { "$ref": "#/$defs/why" }
+      },
+      "if": { "properties": { "mode": { "const": "track" } } },
+      "then": { "required": ["mood", "asset_ref"] },
+      "else": { "not": { "anyOf": [ { "required": ["mood"] }, { "required": ["asset_ref"] } ] } }
+    },
+
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/scene_plan" },
+      "$comment": "Même ensemble de scene_id que le storyboard, même ordre (M1)."
+    },
+
+    "transitions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/transition_decision" },
+      "$comment": "Une par frontière du storyboard, dans l'ordre : longueur = len(scenes) - 1 (M8)."
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "revision_reason": { "const": "initial" } } },
+      "then": { "not": { "required": ["revision"] } },
+      "else": { "required": ["revision"] }
+    },
+    {
+      "if": { "properties": { "revision_reason": { "const": "review_rework" } } },
+      "then": { "properties": { "revision": { "required": ["reviewer_feedback"] } } }
+    }
+  ],
+
+  "$defs": {
+
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+
+    "scene_id": { "type": "string", "pattern": "^sc_[a-z0-9]{2,16}$" },
+
+    "decision_id": {
+      "type": "string",
+      "pattern": "^dec_[a-z0-9_]{2,40}$",
+      "$comment": "Unique dans le plan (M2). Repris tel quel dans composition.plan_decision_ref."
+    },
+
+    "why": {
+      "type": "string",
+      "maxLength": 160,
+      "$comment": "Justification courte du Monteur. Jamais lue par le compilateur. Montrée à Franco quand il refuse un aperçu, et conservée comme donnée de calibration."
+    },
+
+    "scene_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scene_id", "template", "intensity", "camera", "depth"],
+      "properties": {
+        "scene_id": { "$ref": "#/$defs/scene_id" },
+
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision_id", "template_id", "template_version", "chosen_by"],
+          "$comment": "Dans l'ensemble éligible calculé par le code (T6, M4).",
+          "properties": {
+            "decision_id": { "$ref": "#/$defs/decision_id" },
+            "template_id": { "type": "string", "pattern": "^tpl_[a-z0-9_]{3,40}$" },
+            "template_version": { "$ref": "#/$defs/semver" },
+            "chosen_by": {
+              "enum": ["monteur", "code"],
+              "$comment": "code = un seul template éligible, imposé sans appel LLM (T6)."
+            },
+            "why": { "$ref": "#/$defs/why" }
+          }
+        },
+
+        "intensity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision_id", "value"],
+          "$comment": "Intensité d'apparition de la scène, clé de brand_pack.motion_signature.reveal_map. Les beats primary la reçoivent, les secondary un cran en dessous (T8).",
+          "properties": {
+            "decision_id": { "$ref": "#/$defs/decision_id" },
+            "value": { "enum": ["subtle", "standard", "punchy"] },
+            "why": { "$ref": "#/$defs/why" }
+          }
+        },
+
+        "camera": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision_id", "preset"],
+          "$comment": "Clé de brand_pack.motion_signature.camera_map, dans template.capabilities.camera, compatible avec l'asset sujet (M5).",
+          "properties": {
+            "decision_id": { "$ref": "#/$defs/decision_id" },
+            "preset": { "enum": ["static", "push_in", "pull_back", "drift", "orbit"] },
+            "why": { "$ref": "#/$defs/why" }
+          }
+        },
+
+        "depth": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision_id", "layered"],
+          "$comment": "layered = parallaxe. Exige template.capabilities.depth et deux assets distincts background + subject (M6).",
+          "properties": {
+            "decision_id": { "$ref": "#/$defs/decision_id" },
+            "layered": { "type": "boolean" },
+            "why": { "$ref": "#/$defs/why" }
+          }
+        },
+
+        "broll": {
+          "type": "array",
+          "maxItems": 2,
+          "$comment": "Asset d'appoint EXISTANT, placé dans un slot media du template acceptant le rôle supporting ou background (M10). Jamais une génération.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["decision_id", "slot_id", "asset_ref"],
+            "properties": {
+              "decision_id": { "$ref": "#/$defs/decision_id" },
+              "slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_]{2,32}$" },
+              "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
+              "why": { "$ref": "#/$defs/why" }
+            }
+          }
+        },
+
+        "word_sync": {
+          "type": "array",
+          "maxItems": 3,
+          "$comment": "Emphase calée sur un mot prononcé (D20, T8). Un beat on_word du template → un mot de l'alignement, dans le segment de cette scène (M9). Devient text_element.sync.word_ref dans la composition.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["decision_id", "beat_id", "word_ref"],
+            "properties": {
+              "decision_id": { "$ref": "#/$defs/decision_id" },
+              "beat_id": { "type": "string", "pattern": "^bt_[a-z0-9_]{2,32}$" },
+              "word_ref": { "type": "string", "pattern": "^w_[0-9]{1,4}$" },
+              "why": { "$ref": "#/$defs/why" }
+            }
+          }
+        },
+
+        "effect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision_id", "type"],
+          "$comment": "Au plus un effet par scène. Dans brand_pack.motion_signature.effect_map ET template.capabilities.effects. confetti réservé aux scènes offer, cta, closing (M7).",
+          "properties": {
+            "decision_id": { "$ref": "#/$defs/decision_id" },
+            "type": { "enum": ["sparkle", "confetti"] },
+            "why": { "$ref": "#/$defs/why" }
+          }
+        },
+
+        "semantic_sfx": {
+          "type": "array",
+          "maxItems": 2,
+          "$comment": "Sons sémantiques (verre brisé, vent, clic), tirés de la bibliothèque partagée, section sémantique (M11). Deviennent audio.sfx avec origin = semantic dans la composition.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["decision_id", "asset_ref", "anchor"],
+            "properties": {
+              "decision_id": { "$ref": "#/$defs/decision_id" },
+              "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
+              "anchor": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind"],
+                "$comment": "Événement sur lequel le son tombe. Le compilateur résout la position en ms.",
+                "properties": {
+                  "kind": { "enum": ["scene_start", "beat", "word"] },
+                  "ref": {
+                    "type": "string",
+                    "pattern": "^(bt|w)_[a-z0-9_]{1,40}$",
+                    "$comment": "beat_id du template pour beat, word_ref de l'alignement pour word. Absent pour scene_start."
+                  }
+                },
+                "if": { "properties": { "kind": { "const": "scene_start" } } },
+                "then": { "not": { "required": ["ref"] } },
+                "else": { "required": ["ref"] }
+              },
+              "why": { "$ref": "#/$defs/why" }
+            }
+          }
+        }
+      }
+    },
+
+    "transition_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "from_scene", "to_scene", "type"],
+      "$comment": "Type dans les clés de brand_pack.motion_signature.transition_map (M8). Durée et courbe viennent du Brand Pack.",
+      "properties": {
+        "decision_id": { "$ref": "#/$defs/decision_id" },
+        "from_scene": { "$ref": "#/$defs/scene_id" },
+        "to_scene": { "$ref": "#/$defs/scene_id" },
+        "type": { "enum": ["cut", "fade", "slide", "zoom_punch"] },
+        "direction": {
+          "enum": ["up", "down", "left", "right"],
+          "$comment": "Facultatif : à défaut, direction par défaut du Brand Pack."
+        },
+        "why": { "$ref": "#/$defs/why" }
+      },
+      "if": { "properties": { "type": { "enum": ["cut", "fade"] } } },
+      "then": { "not": { "required": ["direction"] } }
+    }
+  }
+}

@@ -1,0 +1,711 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/composition.v2.json",
+  "title": "Composition — contrat de rendu (sortie du compilateur)",
+  "$comment": "Couche COMPOSITION, v2 (26 septembre 2026, décisions D1–D36). Produite par le COMPILATEUR déterministe à partir du montage_plan, du Brand Pack et des templates (D21) — jamais écrite par un LLM. Zéro intention, zéro adjectif, zéro enum sémantique : toute valeur est RÉSOLUE (pixels, millisecondes, hex, courbes de Bézier, décibels) et directement consommable par l'adaptateur de moteur. Si une valeur devait encore être décidée, la décision appartenait au montage_plan et le contrat est incomplet. Validée par composition.rules.md (R1–R17).",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "client_id", "composition_version", "revision_reason", "compiled_from", "canvas", "safe_area", "encode", "fonts", "assets", "scenes", "transitions", "audio", "qa"],
+
+  "properties": {
+    "schema_version": { "const": "2.0" },
+
+    "project_id": { "type": "string", "pattern": "^proj_[a-z0-9]{6,32}$" },
+
+    "client_id": { "type": "string", "pattern": "^cli_[a-z0-9]{6,32}$",
+      "$comment": "Propriétaire de la composition. Tout asset référencé appartient à ce client ou à une ressource partagée déclarée (R17, D30)." },
+
+    "composition_version": { "type": "integer", "minimum": 1 },
+
+    "revision_reason": { "enum": ["initial", "review_rework", "correction"],
+      "$comment": "initial : première compilation. review_rework : refus de Franco, nouveau montage sans regénération (retour à ASSETS_READY). correction : erreur factuelle signalée dans les 7 jours (état CORRECTION, D26). Une question de goût ne produit jamais de nouvelle version : c'est un nouveau projet." },
+
+    "compiled_from": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storyboard_version", "montage_plan_version", "montage_plan_hash", "brand_pack_id", "brand_pack_version", "template_library_version", "audio_library_version", "compiler_version"],
+      "$comment": "Traçabilité complète des entrées. Sans ce bloc, un rendu ne peut pas être reproduit, et un défaut ne peut pas être attribué à sa cause : storyboard, décision du Monteur, charte, template, bibliothèque audio ou compilateur (R3).",
+      "properties": {
+        "storyboard_version": { "type": "integer", "minimum": 1 },
+        "montage_plan_version": { "type": "integer", "minimum": 1 },
+        "montage_plan_hash": { "$ref": "#/$defs/sha256" },
+        "brand_pack_id": { "type": "string", "pattern": "^bp_[a-z0-9]{6,32}$" },
+        "brand_pack_version": { "type": "integer", "minimum": 1 },
+        "template_library_version": { "$ref": "#/$defs/semver" },
+        "audio_library_version": { "$ref": "#/$defs/semver" },
+        "compiler_version": { "$ref": "#/$defs/semver" }
+      }
+    },
+
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "fps", "duration_ms", "background_color"],
+      "properties": {
+        "width": { "const": 1080, "$comment": "D12 : 9:16 uniquement. L'aperçu peut descendre en 720×1280 à l'encodage (encode.preview.resolution), le canvas jamais." },
+        "height": { "const": 1920 },
+        "fps": { "enum": [24, 25, 30],
+          "$comment": "Fréquence fixe, exigée par Meta pour les Reels." },
+        "duration_ms": { "type": "integer", "minimum": 1000, "maximum": 30000,
+          "$comment": "Somme des durées de scènes, elles-mêmes DÉRIVÉES de la voix off (D20, R13). 30 s maximum pour passer sur les trois plateformes. Multiple exact de 1000/fps (R1)." },
+        "background_color": { "$ref": "#/$defs/hex_color",
+          "$comment": "Toute zone non couverte par une couche tombe ici : sans valeur explicite, les trous apparaissent en noir ou en transparent selon le moteur." }
+      }
+    },
+
+    "safe_area": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top", "bottom", "left", "right"],
+      "$comment": "Zone de sécurité UNIQUE pour TikTok Shop, Facebook Ads et statut WhatsApp, en pixels depuis les bords du canvas 1080×1920 : 14 % haut, 35 % bas, 6 % gauche, 10 % droite. Les minimums sont imposés par le schéma : le compilateur peut élargir la marge, jamais la réduire. Aucun texte, logo ni appel à l'action ne sort de cette zone (R5).",
+      "properties": {
+        "top": { "type": "integer", "minimum": 269 },
+        "bottom": { "type": "integer", "minimum": 672 },
+        "left": { "type": "integer", "minimum": 65 },
+        "right": { "type": "integer", "minimum": 108 }
+      }
+    },
+
+    "encode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preview", "master"],
+      "$comment": "Livraison double (D23). Chaque profil est appliqué DANS la commande FFmpeg du moteur, jamais en post-traitement séparé : un remux ultérieur peut réintroduire des B-frames. Budgets calculés par R2, conformité vérifiée par R9 sur les deux fichiers.",
+      "properties": {
+        "preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["container", "faststart", "resolution", "max_bytes", "video", "audio"],
+          "$comment": "Envoyé en type WhatsApp « video », lu en ligne dans la conversation. Contraintes WhatsApp strictes.",
+          "properties": {
+            "container": { "const": "mp4" },
+            "faststart": { "const": true },
+            "resolution": { "enum": ["1080x1920", "720x1280"],
+              "$comment": "720x1280 uniquement si R2 calcule un budget vidéo < 800 kbps en 1080x1920." },
+            "max_bytes": { "type": "integer", "minimum": 1, "maximum": 16777216,
+              "$comment": "16 Mo, marge de sécurité incluse dans la valeur choisie." },
+            "video": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["codec", "profile", "level", "pix_fmt", "b_frames", "bitrate_kbps", "maxrate_kbps", "bufsize_kbps", "keyint", "preset"],
+              "properties": {
+                "codec": { "const": "h264" },
+                "profile": { "const": "main",
+                  "$comment": "Contrainte WhatsApp. High passe parfois, Main passe toujours." },
+                "level": { "enum": ["3.1", "4.0", "4.1"] },
+                "pix_fmt": { "const": "yuv420p" },
+                "b_frames": { "const": 0,
+                  "$comment": "Non négociable. Un échec est TOTALEMENT SILENCIEUX : l'API accepte l'upload, le client Android échoue simplement à lire. Contrôle ffprobe bloquant (R9)." },
+                "bitrate_kbps": { "type": "integer", "minimum": 800, "maximum": 8000,
+                  "$comment": "Calculé depuis max_bytes et duration_ms (R2), jamais choisi arbitrairement." },
+                "maxrate_kbps": { "type": "integer", "minimum": 800 },
+                "bufsize_kbps": { "type": "integer", "minimum": 800 },
+                "keyint": { "type": "integer", "minimum": 1,
+                  "$comment": "Intervalle d'image-clé en frames, typiquement 2 × fps." },
+                "preset": { "enum": ["veryfast", "faster", "fast", "medium"] }
+              }
+            },
+            "audio": { "$ref": "#/$defs/audio_encode" }
+          }
+        },
+        "master": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["container", "faststart", "resolution", "max_bytes", "video", "audio"],
+          "$comment": "Envoyé en type WhatsApp « document » : ni transcodé ni lu en ligne par WhatsApp. C'est le fichier que le client publie en pub. Reste en H.264/AAC, exigés par les plateformes publicitaires.",
+          "properties": {
+            "container": { "const": "mp4" },
+            "faststart": { "const": true },
+            "resolution": { "const": "1080x1920" },
+            "max_bytes": { "type": "integer", "minimum": 1, "maximum": 104857600,
+              "$comment": "100 Mo, limite du type document." },
+            "video": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["codec", "profile", "level", "pix_fmt", "b_frames", "bitrate_kbps", "maxrate_kbps", "bufsize_kbps", "keyint", "preset"],
+              "properties": {
+                "codec": { "const": "h264" },
+                "profile": { "enum": ["main", "high"] },
+                "level": { "enum": ["4.0", "4.1", "4.2"] },
+                "pix_fmt": { "const": "yuv420p" },
+                "b_frames": { "type": "integer", "minimum": 0, "maximum": 3,
+                  "$comment": "Autorisées : le master n'est pas lu par le lecteur vidéo de WhatsApp." },
+                "bitrate_kbps": { "type": "integer", "minimum": 4000, "maximum": 26000,
+                  "$comment": "16000 par défaut, plafonné par le budget de R2 (26 Mbps environ pour 100 Mo sur 30 s)." },
+                "maxrate_kbps": { "type": "integer", "minimum": 4000 },
+                "bufsize_kbps": { "type": "integer", "minimum": 4000 },
+                "keyint": { "type": "integer", "minimum": 1 },
+                "preset": { "enum": ["fast", "medium", "slow"] }
+              }
+            },
+            "audio": { "$ref": "#/$defs/audio_encode" }
+          }
+        }
+      }
+    },
+
+    "fonts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["font_ref", "family", "weight", "uri", "format"],
+        "$comment": "Polices EMBARQUÉES et résolues. Piège récurrent : le conteneur n'a pas la police, Chrome bascule en fallback, et le rendu est cassé sans la moindre erreur. R4 vérifie le chargement effectif via document.fonts.check().",
+        "properties": {
+          "font_ref": { "type": "string", "pattern": "^fnt_[a-z0-9_]{2,32}$" },
+          "family": { "type": "string" },
+          "weight": { "type": "integer", "minimum": 100, "maximum": 900, "multipleOf": 100 },
+          "style": { "enum": ["normal", "italic"], "default": "normal" },
+          "uri": { "type": "string" },
+          "format": { "enum": ["woff2", "ttf", "otf"] }
+        }
+      }
+    },
+
+    "assets": {
+      "type": "object",
+      "minProperties": 1,
+      "$comment": "Table de résolution centrale, indexée par asset_ref. Les scènes et l'audio référencent par clé et ne dupliquent jamais une URI : un asset utilisé trois fois n'est téléchargé, décodé et facturé qu'une fois.",
+      "additionalProperties": { "$ref": "#/$defs/resolved_asset" },
+      "propertyNames": { "pattern": "^ast_[a-z0-9_]{3,40}$" }
+    },
+
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/scene" }
+    },
+
+    "transitions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/transition" }
+    },
+
+    "audio": { "$ref": "#/$defs/audio" },
+
+    "qa": { "$ref": "#/$defs/qa" }
+  },
+
+  "$defs": {
+
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+
+    "hex_color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "$comment": "Résolu depuis un token du Brand Pack. Ici, une couleur est une valeur sur laquelle le validateur peut calculer un contraste."
+    },
+
+    "easing": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 4,
+      "maxItems": 4,
+      "$comment": "cubic-bezier(x1, y1, x2, y2). Pas de nom d'easing : 'spring' ou 'bounce' changent d'un moteur à l'autre, une courbe de Bézier non."
+    },
+
+    "plan_decision_ref": {
+      "type": "string",
+      "pattern": "^dec_[a-z0-9_]{2,40}$",
+      "$comment": "Identifiant de la décision du montage_plan qui a produit cet élément (R3). Absent = élément issu du template ou du Brand Pack. C'est ce champ qui permet d'attribuer un défaut au Monteur ou au compilateur."
+    },
+
+    "box": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "$comment": "En pixels absolus, origine au coin haut-gauche du canvas. Pas de pourcentage, pas d'ancrage implicite.",
+      "properties": {
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "audio_encode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["codec", "bitrate_kbps", "sample_rate", "channels"],
+      "$comment": "Identique sur les deux sorties : AAC stéréo 48 kHz, 128 kbps minimum (exigence Meta pour les Reels). La piste existe toujours, même silencieuse (R10).",
+      "properties": {
+        "codec": { "const": "aac" },
+        "bitrate_kbps": { "enum": [128, 192, 256] },
+        "sample_rate": { "const": 48000 },
+        "channels": { "const": 2 }
+      }
+    },
+
+    "resolved_asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "kind", "bytes", "checksum", "owner", "provenance"],
+      "properties": {
+        "uri": { "type": "string",
+          "$comment": "Chemin local dans le conteneur, hydraté depuis R2 avant le lancement de la page. Jamais une URL distante (R11)." },
+        "kind": { "enum": ["still", "video", "sequence_360", "vector", "audio"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "checksum": { "$ref": "#/$defs/sha256" },
+        "has_alpha": { "type": "boolean", "default": false },
+        "sample_rate": { "type": "integer", "enum": [44100, 48000] },
+        "channels": { "type": "integer", "enum": [1, 2] },
+        "focal_point": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y"],
+          "$comment": "Normalisé 0–1, issu de la normalisation du Brand Pack. Évite de recadrer un produit hors champ.",
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 1 },
+            "y": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "owner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scope"],
+          "$comment": "Isolation entre clients (R17, D30). scope = client : client_id obligatoire et égal à celui de la composition. scope = shared : bibliothèque audio ou asset de template, partagé par construction.",
+          "properties": {
+            "scope": { "enum": ["client", "shared"] },
+            "client_id": { "type": "string", "pattern": "^cli_[a-z0-9]{6,32}$" }
+          },
+          "if": { "properties": { "scope": { "const": "client" } } },
+          "then": { "required": ["client_id"] },
+          "else": { "not": { "required": ["client_id"] } }
+        },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "audio" } } },
+          "then": { "required": ["duration_ms", "sample_rate", "channels"] },
+          "else": { "required": ["width", "height"] }
+        },
+        {
+          "if": { "properties": { "kind": { "enum": ["video", "sequence_360"] } } },
+          "then": { "required": ["duration_ms"] }
+        }
+      ]
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "$comment": "Idempotence et droits. generation_key permet de ne jamais repayer une génération à la reprise (R12). license et source_url rendent défendable une réclamation de droits sur une pub diffusée (R16).",
+      "properties": {
+        "source": { "enum": ["client", "brand_pack", "generated", "tts", "library", "derived"] },
+        "generation_key": { "$ref": "#/$defs/sha256",
+          "$comment": "sha256(provider | model | prompt | negative_prompt | seed | params), ou sha256(model | voice_id | texte | params) pour la voix off." },
+        "provider": { "type": "string",
+          "$comment": "fal.ai pour la génération, identifiant du Job GPU pour la voix off." },
+        "model": { "type": "string" },
+        "license": { "enum": ["client_owned", "pixabay_content_license", "cc0", "generated_commercial"] },
+        "source_url": { "type": "string", "format": "uri" },
+        "derived_from": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$",
+          "$comment": "Pour source = derived : détourage, recadrage, conversion. Permet de rejouer la transformation sans repartir du client." }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "source": { "enum": ["generated", "tts"] } } },
+          "then": { "required": ["generation_key", "provider", "model", "license"] }
+        },
+        {
+          "if": { "properties": { "source": { "const": "library" } } },
+          "then": { "required": ["license", "source_url"] }
+        },
+        {
+          "if": { "properties": { "source": { "enum": ["client", "brand_pack"] } } },
+          "then": { "required": ["license"] }
+        }
+      ]
+    },
+
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scene_id", "storyboard_scene_hash", "template_id", "template_version", "start_ms", "duration_ms", "layers"],
+      "properties": {
+        "scene_id": { "type": "string", "pattern": "^sc_[a-z0-9]{2,16}$",
+          "$comment": "IDENTIQUE au scene_id du storyboard et du montage_plan (R3)." },
+        "storyboard_scene_hash": { "$ref": "#/$defs/sha256",
+          "$comment": "Recopié du storyboard. Inchangé lors d'une correction = scène ni régénérée ni re-rendue." },
+        "template_id": { "type": "string", "pattern": "^tpl_[a-z0-9_]{3,40}$" },
+        "template_version": { "$ref": "#/$defs/semver",
+          "$comment": "Template FIGÉ et versionné (D15). Une structure inédite passe par la file de validation, jamais par le runtime." },
+        "template_plan_decision_ref": { "$ref": "#/$defs/plan_decision_ref",
+          "$comment": "Décision du Monteur qui a choisi ce template pour cette scène." },
+        "start_ms": { "type": "integer", "minimum": 0 },
+        "duration_ms": { "type": "integer", "minimum": 500,
+          "$comment": "DÉRIVÉE de la voix off : segment de la scène + tail_ms (R13). La durée du storyboard n'est qu'une cible." },
+        "camera": { "$ref": "#/$defs/camera" },
+        "layers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/layer" }
+        },
+        "text_elements": {
+          "type": "array",
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/text_element" }
+        },
+        "effects": {
+          "type": "array",
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/effect" }
+        }
+      }
+    },
+
+    "camera": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keyframes"],
+      "$comment": "Keyframes explicites plutôt qu'un nom de mouvement : 'push_in' est une intention du montage_plan, une suite de (t, scale, x, y) est sa résolution.",
+      "properties": {
+        "plan_decision_ref": { "$ref": "#/$defs/plan_decision_ref" },
+        "keyframes": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["t_ms", "scale", "x", "y"],
+            "properties": {
+              "t_ms": { "type": "integer", "minimum": 0,
+                "$comment": "Relatif au début de la scène." },
+              "scale": { "type": "number", "minimum": 0.5, "maximum": 3.0 },
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "rotation_deg": { "type": "number", "default": 0 },
+              "easing": { "$ref": "#/$defs/easing" }
+            }
+          }
+        }
+      }
+    },
+
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer_id", "role", "asset_ref", "z_index", "box", "fit"],
+      "properties": {
+        "layer_id": { "type": "string", "pattern": "^ly_[a-z0-9_]{2,32}$" },
+        "role": { "enum": ["background", "subject", "broll", "logo", "overlay"],
+          "$comment": "Rôle structurel, pas une intention : il détermine les règles applicables (R5 zone de sécurité pour logo, R6 interdiction de vector en background)." },
+        "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
+        "plan_decision_ref": { "$ref": "#/$defs/plan_decision_ref",
+          "$comment": "Présent pour un B-roll ou un visuel choisi par le Monteur." },
+        "z_index": { "type": "integer", "minimum": 0, "maximum": 99,
+          "$comment": "Unique dans une scène (R6)." },
+        "box": { "$ref": "#/$defs/box" },
+        "fit": { "enum": ["cover", "contain"] },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 },
+        "parallax_factor": { "type": "number", "minimum": 0, "maximum": 2, "default": 1,
+          "$comment": "Sur-cadrage nécessaire vérifié par R7." },
+        "media_start_ms": { "type": "integer", "minimum": 0, "default": 0,
+          "$comment": "Point d'entrée dans un asset vidéo. Ignoré pour les images." }
+      }
+    },
+
+    "text_element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text_id", "role", "content", "font_ref", "box", "font_size_px", "min_font_size_px", "max_lines", "overflow", "color", "align", "animation"],
+      "properties": {
+        "text_id": { "type": "string", "pattern": "^txt_[a-z0-9_]{2,32}$" },
+        "role": { "enum": ["headline", "body", "price", "cta", "caption"],
+          "$comment": "Rôle structurel. Un cta est soumis à la zone de sécurité comme un logo (R5)." },
+        "content": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "font_ref": { "type": "string", "pattern": "^fnt_[a-z0-9_]{2,32}$" },
+        "box": { "$ref": "#/$defs/box",
+          "$comment": "La boîte rend le débordement détectable en DOM avant rendu (R5)." },
+        "font_size_px": { "type": "integer", "minimum": 8 },
+        "min_font_size_px": { "type": "integer", "minimum": 8,
+          "$comment": "Plancher du shrink-to-fit. En dessous, R5 rejette." },
+        "line_height": { "type": "number", "minimum": 0.8, "maximum": 2.5 },
+        "max_lines": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "overflow": { "enum": ["shrink", "wrap", "truncate"] },
+        "color": { "$ref": "#/$defs/hex_color" },
+        "align": { "enum": ["left", "center", "right"] },
+        "background": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["color", "radius_px", "padding_px"],
+          "properties": {
+            "color": { "$ref": "#/$defs/hex_color" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 },
+            "radius_px": { "type": "integer", "minimum": 0 },
+            "padding_px": {
+              "type": "array",
+              "items": { "type": "integer", "minimum": 0 },
+              "minItems": 4,
+              "maxItems": 4,
+              "$comment": "[haut, droite, bas, gauche]."
+            }
+          }
+        },
+        "contrast_ratio": { "type": "number", "minimum": 1, "maximum": 21,
+          "$comment": "Calculé par le compilateur à titre indicatif. Le validateur le RECALCULE toujours et ne lit jamais cette valeur (R8)." },
+        "sync": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["word_ref"],
+          "$comment": "Emphase visuelle calée sur un mot de la voix off : animation.start_ms égale le start_ms du mot ±1 frame (R13).",
+          "properties": {
+            "word_ref": { "type": "string", "pattern": "^w_[0-9]{1,4}$" },
+            "plan_decision_ref": { "$ref": "#/$defs/plan_decision_ref" }
+          }
+        },
+        "animation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "start_ms", "duration_ms", "easing"],
+          "properties": {
+            "type": { "enum": ["fade_in", "slide_in", "scale_in", "mask_reveal"],
+              "$comment": "4 animations en v1. Le mapping depuis l'intention du montage_plan appartient au Brand Pack." },
+            "direction": { "enum": ["up", "down", "left", "right"] },
+            "start_ms": { "type": "integer", "minimum": 0 },
+            "duration_ms": { "type": "integer", "minimum": 100 },
+            "easing": { "$ref": "#/$defs/easing" }
+          }
+        }
+      }
+    },
+
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effect_id", "type", "start_ms", "duration_ms", "z_index", "seed"],
+      "properties": {
+        "effect_id": { "type": "string", "pattern": "^fx_[a-z0-9_]{2,32}$" },
+        "type": { "enum": ["sparkle", "confetti"] },
+        "plan_decision_ref": { "$ref": "#/$defs/plan_decision_ref" },
+        "start_ms": { "type": "integer", "minimum": 0 },
+        "duration_ms": { "type": "integer", "minimum": 100 },
+        "z_index": { "type": "integer", "minimum": 0, "maximum": 99 },
+        "density": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "colors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hex_color" },
+          "minItems": 1,
+          "maxItems": 4
+        },
+        "seed": { "type": "integer", "minimum": 0,
+          "$comment": "Obligatoire (R11). Sans seed, un effet à particules rend un fichier différent à chaque exécution." }
+      }
+    },
+
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transition_id", "from_scene", "to_scene", "type", "start_ms", "duration_ms", "easing"],
+      "$comment": "Objet de frontière, déclaré une seule fois. La transition commence avant la fin de la scène sortante et n'ajoute aucune durée (R1).",
+      "properties": {
+        "transition_id": { "type": "string", "pattern": "^tr_[a-z0-9_]{2,32}$",
+          "$comment": "Référencé par les effets sonores structurels (audio.sfx[].event_ref)." },
+        "from_scene": { "type": "string", "pattern": "^sc_[a-z0-9]{2,16}$" },
+        "to_scene": { "type": "string", "pattern": "^sc_[a-z0-9]{2,16}$" },
+        "type": { "enum": ["cut", "fade", "slide", "zoom_punch"] },
+        "plan_decision_ref": { "$ref": "#/$defs/plan_decision_ref" },
+        "direction": { "enum": ["up", "down", "left", "right"] },
+        "start_ms": { "type": "integer", "minimum": 0 },
+        "duration_ms": { "type": "integer", "minimum": 0, "maximum": 1200,
+          "$comment": "0 obligatoire pour type = cut." },
+        "easing": { "$ref": "#/$defs/easing" }
+      },
+      "if": { "properties": { "type": { "const": "cut" } } },
+      "then": { "properties": { "duration_ms": { "const": 0 } } }
+    },
+
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["loudness", "ducking_db", "sfx_gain_under_voice_db", "sfx", "silent_fallback"],
+      "$comment": "Pistes audio entièrement résolues (D19, D20). Le mixage est intégralement décrit ici : gains, ducking, fondus, positions. Deux mixages de la même composition produisent le même fichier (R11).",
+      "properties": {
+        "voiceover": { "$ref": "#/$defs/voiceover" },
+        "music": { "$ref": "#/$defs/music" },
+        "sfx": {
+          "type": "array",
+          "maxItems": 24,
+          "items": { "$ref": "#/$defs/sfx" }
+        },
+        "ducking_db": { "type": "number", "minimum": -30, "maximum": -6, "default": -12,
+          "$comment": "Atténuation de la musique sous chaque segment de voix off (R15)." },
+        "sfx_gain_under_voice_db": { "type": "number", "minimum": -30, "maximum": 0, "default": -6,
+          "$comment": "Gain maximal d'un effet sonore pendant un segment de voix off (R14)." },
+        "loudness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target_lufs", "true_peak_dbtp", "tolerance_lu"],
+          "$comment": "Cible de normalisation du mix final, vérifiée par R10.",
+          "properties": {
+            "target_lufs": { "const": -14 },
+            "true_peak_dbtp": { "const": -1 },
+            "tolerance_lu": { "const": 1 }
+          }
+        },
+        "silent_fallback": { "type": "boolean",
+          "$comment": "true si ni voix off ni musique : une piste AAC silencieuse (anullsrc) est générée quand même, car certains clients refusent un MP4 sans audio (R10)." }
+      },
+      "if": { "properties": { "silent_fallback": { "const": true } } },
+      "then": { "not": { "anyOf": [ { "required": ["voiceover"] }, { "required": ["music"] } ] } },
+      "else": { "anyOf": [ { "required": ["voiceover"] }, { "required": ["music"] } ] }
+    },
+
+    "voiceover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_ref", "voice_id", "gain_db", "tail_ms", "segments", "alignment"],
+      "$comment": "La voix off est l'horloge du montage (D20). Générée une seule fois, stockée sur R2, jamais regénérée à la reprise (R11, R12).",
+      "properties": {
+        "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
+        "voice_id": { "type": "string", "pattern": "^voice_[a-z0-9_]{2,32}$",
+          "$comment": "Voix choisie par le client dans le catalogue." },
+        "gain_db": { "type": "number", "minimum": -12, "maximum": 6 },
+        "tail_ms": { "type": "integer", "minimum": 0, "maximum": 1000, "default": 200,
+          "$comment": "Respiration minimale après le dernier mot d'une scène, résolue depuis le template (R13)." },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["segment_id", "scene_id", "start_ms", "end_ms"],
+            "$comment": "Positions sur la timeline globale. Un segment par scène parlée.",
+            "properties": {
+              "segment_id": { "type": "string", "pattern": "^seg_[a-z0-9_]{2,32}$" },
+              "scene_id": { "type": "string", "pattern": "^sc_[a-z0-9]{2,16}$" },
+              "start_ms": { "type": "integer", "minimum": 0 },
+              "end_ms": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "alignment": {
+          "type": "array",
+          "minItems": 1,
+          "$comment": "Horodatage mot à mot issu de l'alignement forcé, sur la timeline globale. Source des durées de scènes et des emphases synchronisées (R13).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["word_ref", "text", "start_ms", "end_ms", "segment_id"],
+            "properties": {
+              "word_ref": { "type": "string", "pattern": "^w_[0-9]{1,4}$" },
+              "text": { "type": "string", "minLength": 1, "maxLength": 40 },
+              "start_ms": { "type": "integer", "minimum": 0 },
+              "end_ms": { "type": "integer", "minimum": 1 },
+              "segment_id": { "type": "string", "pattern": "^seg_[a-z0-9_]{2,32}$" }
+            }
+          }
+        }
+      }
+    },
+
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_ref", "gain_db", "media_start_ms", "fade_in_ms", "fade_out_ms", "loop"],
+      "$comment": "Piste de la bibliothèque audio (D32). Non réutilisée entre deux clients sur la période configurée, vérifié en base avant rendu (R15).",
+      "properties": {
+        "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
+        "plan_decision_ref": { "$ref": "#/$defs/plan_decision_ref" },
+        "gain_db": { "type": "number", "minimum": -30, "maximum": 0 },
+        "media_start_ms": { "type": "integer", "minimum": 0, "default": 0,
+          "$comment": "Point d'entrée dans la piste." },
+        "fade_in_ms": { "type": "integer", "minimum": 0, "maximum": 3000 },
+        "fade_out_ms": { "type": "integer", "minimum": 100, "maximum": 5000,
+          "$comment": "Fondu de sortie obligatoire sur la fin du canvas (R15)." },
+        "loop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "crossfade_ms": { "type": "integer", "minimum": 0, "maximum": 2000 }
+          },
+          "if": { "properties": { "enabled": { "const": true } } },
+          "then": { "required": ["crossfade_ms"] }
+        }
+      }
+    },
+
+    "sfx": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sfx_id", "asset_ref", "origin", "event_ref", "start_ms", "gain_db"],
+      "$comment": "Effet sonore rattaché à un événement de la timeline, aligné sur lui ±1 frame (R14).",
+      "properties": {
+        "sfx_id": { "type": "string", "pattern": "^sfx_[a-z0-9_]{2,32}$" },
+        "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
+        "origin": { "enum": ["structural", "semantic"],
+          "$comment": "structural : son défini par le Brand Pack ou le template pour un type d'événement. semantic : son choisi par le Monteur (verre brisé, vent, clic)." },
+        "plan_decision_ref": { "$ref": "#/$defs/plan_decision_ref" },
+        "event_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "ref"],
+          "properties": {
+            "kind": { "enum": ["transition", "text_in", "layer_in", "effect", "word"] },
+            "ref": { "type": "string", "pattern": "^(tr|txt|ly|fx|w)_[a-z0-9_]{1,40}$",
+              "$comment": "transition_id, text_id, layer_id, effect_id ou word_ref selon kind." }
+          }
+        },
+        "start_ms": { "type": "integer", "minimum": 0,
+          "$comment": "Position sur la timeline globale." },
+        "gain_db": { "type": "number", "minimum": -30, "maximum": 0 }
+      },
+      "if": { "properties": { "origin": { "const": "semantic" } } },
+      "then": { "required": ["plan_decision_ref"] }
+    },
+
+    "qa": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_contrast_ratio", "frame_captures", "checklist"],
+      "$comment": "Le contrat de QA voyage avec la composition. Le juge est Franco (D22), qui reçoit l'aperçu et cette checklist. Le juge VLM est abandonné (D17) : les frame_captures servent de support de revue et de données de calibration pour une automatisation future.",
+      "properties": {
+        "min_contrast_ratio": { "type": "number", "minimum": 1, "default": 4.5 },
+        "frame_captures": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "$comment": "Points de capture DÉTERMINISTES : première frame de chaque scène, milieu de chaque transition, dernière frame.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["t_ms", "scene_id", "reason"],
+            "properties": {
+              "t_ms": { "type": "integer", "minimum": 0 },
+              "scene_id": { "type": "string", "pattern": "^sc_[a-z0-9]{2,16}$" },
+              "reason": { "enum": ["scene_open", "scene_mid", "transition_mid", "final_frame"] }
+            }
+          }
+        },
+        "checklist": {
+          "type": "array",
+          "minItems": 1,
+          "$comment": "Reprise littérale des must_show et client_constraints du storyboard validé par le client, indexée par scène, formulée en questions vérifiables. Présentée à Franco avec l'aperçu.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["scene_id", "assertion"],
+            "properties": {
+              "scene_id": { "type": "string", "pattern": "^sc_[a-z0-9]{2,16}$" },
+              "assertion": { "type": "string", "minLength": 5, "maxLength": 200 },
+              "severity": { "enum": ["blocking", "warning"], "default": "blocking" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

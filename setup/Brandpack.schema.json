@@ -1,0 +1,706 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/brand-pack.v2.json",
+  "title": "Brand Pack — table de résolution de marque",
+  "$comment": "v2, réécrite le 26 septembre 2026 (décisions D1–D36). Le Brand Pack n'est PAS une charte graphique : c'est la table qui traduit les décisions du montage_plan en valeurs, et qui DÉFINIT le vocabulaire autorisé du Monteur pour ce client (clés présentes de transition_map, camera_map, effect_map). Apparence, rythme et son de la marque. Ni zone de sécurité ni encodage (constantes du système), ni piste de musique ni effet sémantique (choix par projet), ni durée de scène (voix off). Tout ce qu'un humain lit mais qu'aucun code ne consomme appartient au bloc guidance. Produit par un LLM d'onboarding, validé par Franco avant publication (B15). IMMUABLE une fois publié. Validé par brand-pack.rules.md (B1–B15).",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "brand_pack_id", "version", "status", "client_id", "name", "layout", "color", "typography", "motion_signature", "sound_set", "voice", "music", "assets", "guidance", "onboarding"],
+
+  "properties": {
+    "schema_version": { "const": "2.0" },
+
+    "brand_pack_id": { "type": "string", "pattern": "^bp_[a-z0-9]{6,32}$" },
+
+    "version": { "type": "integer", "minimum": 1 },
+
+    "status": {
+      "enum": ["draft", "pending_review", "published", "archived"],
+      "$comment": "Seul published est compilable pour un nouveau projet ; archived reste compilable pour l'existant. pending_review = soumis à Franco avec planche de marque et rendu de démonstration (B15)."
+    },
+
+    "client_id": {
+      "type": "string",
+      "pattern": "^cli_[a-z0-9]{6,32}$",
+      "$comment": "Propriétaire. Tous les assets vivent sous brand/<client_id>/ (D27, D30)."
+    },
+
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grid_unit_ratio"],
+      "$comment": "Géométrie propre à la marque, en fractions du canvas. La zone de sécurité N'EST PLUS ICI : constante du système (14 % haut, 35 % bas, 6 % gauche, 10 % droite), identique pour toutes les marques (B3).",
+      "properties": {
+        "grid_unit_ratio": {
+          "type": "number",
+          "minimum": 0.005,
+          "maximum": 0.1,
+          "$comment": "Unité d'espacement, fraction de la plus petite dimension."
+        },
+        "logo_placement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["corner", "width_ratio"],
+          "$comment": "Position par défaut du logo quand le template la laisse ouverte. corner est relatif à la ZONE UTILE (dans la zone de sécurité), pas au canvas : bottom_right place le logo au bas de la zone utile, au-dessus des 35 % masqués.",
+          "properties": {
+            "corner": { "enum": ["top_left", "top_right", "top_center", "bottom_left", "bottom_right", "bottom_center"] },
+            "width_ratio": { "type": "number", "minimum": 0.05, "maximum": 0.5 }
+          }
+        }
+      }
+    },
+
+    "color": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokens", "contrast_pairs", "on_image_policy"],
+      "properties": {
+        "tokens": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["surface_dark", "surface_light", "accent_primary", "text_on_dark", "text_on_light", "cta_background", "cta_text", "scrim"],
+          "$comment": "Tokens SÉMANTIQUES. Les couleurs sont PROPOSÉES par le LLM d'onboarding ; la matrice de contraste est CALCULÉE par le code (B2). Aussi cibles des fallback_token des templates (solid_fill).",
+          "properties": {
+            "surface_dark": { "$ref": "#/$defs/hex_color" },
+            "surface_light": { "$ref": "#/$defs/hex_color" },
+            "surface_accent": { "$ref": "#/$defs/hex_color" },
+            "accent_primary": { "$ref": "#/$defs/hex_color" },
+            "accent_secondary": { "$ref": "#/$defs/hex_color" },
+            "text_on_dark": { "$ref": "#/$defs/hex_color" },
+            "text_on_light": { "$ref": "#/$defs/hex_color" },
+            "text_on_accent": { "$ref": "#/$defs/hex_color" },
+            "cta_background": { "$ref": "#/$defs/hex_color" },
+            "cta_text": { "$ref": "#/$defs/hex_color" },
+            "scrim": {
+              "$ref": "#/$defs/hex_color",
+              "$comment": "Obligatoire : c'est le mécanisme de secours de on_image_policy avec des assets clients imprévisibles."
+            }
+          }
+        },
+
+        "contrast_pairs": {
+          "type": "array",
+          "minItems": 3,
+          "$comment": "PRÉ-CALCULÉ par le code à la publication (B2), jamais écrit par le LLM. Le compilateur ne choisit que parmi les paires approuvées.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["foreground", "background", "ratio", "approved"],
+            "properties": {
+              "foreground": { "$ref": "#/$defs/token_ref" },
+              "background": { "$ref": "#/$defs/token_ref" },
+              "ratio": { "type": "number", "minimum": 1, "maximum": 21 },
+              "approved": { "type": "boolean" },
+              "min_size_px": { "type": "integer", "minimum": 8 }
+            }
+          }
+        },
+
+        "on_image_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strategy", "scrim_opacity"],
+          "$comment": "Texte sur une photo client de luminance inconnue (B9). always_scrim est le choix sûr.",
+          "properties": {
+            "strategy": { "enum": ["always_scrim", "adaptive_scrim", "text_plate"] },
+            "scrim_opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "luminance_threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "if": { "properties": { "strategy": { "const": "adaptive_scrim" } } },
+          "then": { "required": ["luminance_threshold"] }
+        }
+      }
+    },
+
+    "typography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fonts", "scale", "emphasis_map"],
+      "properties": {
+        "fonts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/font" }
+        },
+        "scale": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["display", "headline", "body", "caption"],
+          "$comment": "Tailles en FRACTION de canvas.height.",
+          "properties": {
+            "display": { "$ref": "#/$defs/type_role" },
+            "headline": { "$ref": "#/$defs/type_role" },
+            "body": { "$ref": "#/$defs/type_role" },
+            "caption": { "$ref": "#/$defs/type_role" }
+          }
+        },
+        "emphasis_map": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["normal", "strong"],
+          "$comment": "Résout emphasis du storyboard vers un rôle typographique.",
+          "properties": {
+            "normal": { "enum": ["display", "headline", "body", "caption"] },
+            "strong": { "enum": ["display", "headline", "body", "caption"] }
+          }
+        }
+      }
+    },
+
+    "motion_signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preset", "reveal_map", "transition_map", "camera_map", "timing", "parallax_spread"],
+      "$comment": "Double rôle (B5) : valeurs appliquées par le compilateur, ET vocabulaire du Monteur pour ce client. Une clé absente de transition_map, camera_map ou effect_map est une RESTRICTION volontaire : le Monteur ne peut pas la choisir. Une clé présente doit être complète.",
+      "properties": {
+        "preset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["preset_id", "preset_version"],
+          "$comment": "Signature de départ dont celle-ci est dérivée (D14). Sert à l'avertissement B5 : identique au preset sur toutes les valeurs = pas de signature propre.",
+          "properties": {
+            "preset_id": { "type": "string", "pattern": "^preset_[a-z0-9_]{2,32}$" },
+            "preset_version": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "reveal_map": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["subtle", "standard", "punchy"],
+          "$comment": "TOTALE : les trois intensités existent pour toute marque. Clés = intensité choisie par le Monteur pour une scène (T8).",
+          "properties": {
+            "subtle": { "$ref": "#/$defs/text_animation" },
+            "standard": { "$ref": "#/$defs/text_animation" },
+            "punchy": { "$ref": "#/$defs/text_animation" }
+          }
+        },
+        "transition_map": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cut"],
+          "minProperties": 2,
+          "$comment": "Sous-ensemble de cut, fade, slide, zoom_punch. Au moins cut et une autre. La clé EST le type de transition de la composition.",
+          "properties": {
+            "cut": {
+              "allOf": [
+                { "$ref": "#/$defs/transition_spec" },
+                { "properties": { "duration_ms": { "const": 0 } } }
+              ]
+            },
+            "fade": { "$ref": "#/$defs/transition_spec" },
+            "slide": {
+              "allOf": [
+                { "$ref": "#/$defs/transition_spec" },
+                { "required": ["direction"] }
+              ]
+            },
+            "zoom_punch": { "$ref": "#/$defs/transition_spec" }
+          }
+        },
+        "camera_map": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["static"],
+          "minProperties": 2,
+          "$comment": "Sous-ensemble de static, push_in, pull_back, drift, orbit. Au moins static et un autre. orbit n'est choisissable que si la marque l'autorise ET que l'asset est une séquence 360 ou une vidéo (règles du montage_plan).",
+          "properties": {
+            "static": { "$ref": "#/$defs/camera_spec" },
+            "push_in": { "$ref": "#/$defs/camera_spec" },
+            "pull_back": { "$ref": "#/$defs/camera_spec" },
+            "drift": {
+              "allOf": [
+                { "$ref": "#/$defs/camera_spec" },
+                { "anyOf": [ { "required": ["drift_x"] }, { "required": ["drift_y"] } ] }
+              ]
+            },
+            "orbit": { "$ref": "#/$defs/camera_spec" }
+          }
+        },
+        "effect_map": {
+          "type": "object",
+          "additionalProperties": false,
+          "$comment": "Facultatif. Mêmes valeurs que effect.type de la composition. Absent = aucun effet de particules pour cette marque.",
+          "properties": {
+            "sparkle": { "$ref": "#/$defs/effect_spec" },
+            "confetti": { "$ref": "#/$defs/effect_spec" }
+          }
+        },
+        "timing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["stagger_ms", "text_delay_ms"],
+          "$comment": "Amplitudes du rythme. La structure du décalage appartient au template (stagger_steps), son amplitude à la marque (T8).",
+          "properties": {
+            "stagger_ms": { "type": "integer", "minimum": 0, "maximum": 500,
+              "$comment": "Durée d'un pas de décalage entre deux beats enchaînés." },
+            "text_delay_ms": { "type": "integer", "minimum": 0, "maximum": 3000,
+              "$comment": "Délai entre l'ouverture d'une scène et l'apparition du texte. Entre aussi dans le plancher de lecture du storyboard sans voix off (S5)." }
+          }
+        },
+        "parallax_spread": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "$comment": "Écart de parallax_factor entre le tier far et le tier subject. Unique pour la marque : il détermine le sur-cadrage exigé par R7 et la normalisation des fonds (B6)."
+        }
+      }
+    },
+
+    "sound_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["events", "transitions"],
+      "$comment": "Jeu de sons STRUCTURELS (B13). Table TOTALE sur les événements des templates (T12) ; les clés de transitions doivent reproduire exactement celles de transition_map (vérifié par le code). Chaque entrée : un son de la bibliothèque partagée, ou none EXPLICITE. Les effets sémantiques n'y figurent jamais.",
+      "properties": {
+        "events": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text_in", "media_in", "logo_in", "emphasis", "scene_out"],
+          "properties": {
+            "text_in": { "$ref": "#/$defs/sound_entry" },
+            "media_in": { "$ref": "#/$defs/sound_entry" },
+            "logo_in": { "$ref": "#/$defs/sound_entry" },
+            "emphasis": { "$ref": "#/$defs/sound_entry" },
+            "scene_out": { "$ref": "#/$defs/sound_entry" }
+          }
+        },
+        "transitions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cut"],
+          "properties": {
+            "cut": { "$ref": "#/$defs/sound_entry" },
+            "fade": { "$ref": "#/$defs/sound_entry" },
+            "slide": { "$ref": "#/$defs/sound_entry" },
+            "zoom_punch": { "$ref": "#/$defs/sound_entry" }
+          }
+        }
+      }
+    },
+
+    "voice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "pronunciation"],
+      "$comment": "Préférences de voix off et lexique de prononciation (B14). Le choix de voix d'un projet appartient au client (D19).",
+      "properties": {
+        "language": {
+          "enum": ["fr", "en", "ar"],
+          "$comment": "Langue principale de la marque. Chaque voice_id ci-dessous doit la parler (vérifié contre le catalogue)."
+        },
+        "default_voice_id": {
+          "type": "string",
+          "pattern": "^voice_[a-z0-9_]{2,32}$",
+          "$comment": "Voix proposée par défaut dans le brouillon du clarificateur."
+        },
+        "allowed_voice_ids": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^voice_[a-z0-9_]{2,32}$" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "$comment": "Sous-ensemble du catalogue, facultatif. Absent = tout le catalogue dans la langue de la marque."
+        },
+        "pronunciation": {
+          "type": "array",
+          "maxItems": 50,
+          "$comment": "Nom de marque, de produit ou de lieu → forme phonétique réécrite, appliquée UNIQUEMENT à l'entrée de la synthèse vocale. Le texte à l'écran et le script gardent l'orthographe réelle.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["term", "spoken"],
+            "properties": {
+              "term": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "spoken": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "pattern": "^[^0-9%€$£¥#@&*+=/\\\\<>|_~^]*$",
+                "$comment": "Forme parlée : ni chiffre ni symbole, comme le script de voix off (S4)."
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_moods"],
+      "$comment": "AUCUNE piste ici (B14). Ambiances autorisées parmi les tags de la bibliothèque partagée ; le Monteur choisit la piste par projet, le compilateur applique la non-réutilisation entre clients (D32, R15).",
+      "properties": {
+        "allowed_moods": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^mood_[a-z0-9_]{2,32}$" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "music_gain_db": {
+          "type": "number",
+          "minimum": -30,
+          "maximum": 0,
+          "$comment": "Gain de base de la musique pour la marque, avant ducking sous la voix."
+        }
+      }
+    },
+
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logos"],
+      "$comment": "Assets NORMALISÉS (B6), stockés sous brand/<client_id>/, préfixe exclu de la suppression à 7 jours. Les bruts sont conservés séparément comme source de rejeu.",
+      "properties": {
+        "logos": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["on_dark", "on_light"],
+          "properties": {
+            "on_dark": { "$ref": "#/$defs/logo_asset" },
+            "on_light": { "$ref": "#/$defs/logo_asset" },
+            "mark": { "$ref": "#/$defs/logo_asset" }
+          }
+        },
+        "backgrounds": {
+          "type": "array",
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/normalized_asset" }
+        },
+        "products": {
+          "type": "array",
+          "maxItems": 60,
+          "items": { "$ref": "#/$defs/product_asset" }
+        }
+      }
+    },
+
+    "guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tone_of_voice"],
+      "$comment": "SEUL bloc destiné à un LLM : injecté dans les prompts du Storyboard et du Monteur, jamais lu par le compilateur. forbidden_terms et required_mentions sont EN PLUS vérifiés par le code sur le texte, le script de voix off et le résumé client (B12).",
+      "properties": {
+        "tone_of_voice": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 1000,
+          "$comment": "Anciennement guidance.voice, renommé pour ne pas se confondre avec la voix off (bloc voice)."
+        },
+        "do": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "maxItems": 10 },
+        "dont": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "maxItems": 10 },
+        "forbidden_terms": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 60 },
+          "maxItems": 40
+        },
+        "required_mentions": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text", "applies_to"],
+            "properties": {
+              "text": { "type": "string", "maxLength": 200 },
+              "applies_to": {
+                "type": "array",
+                "items": { "enum": ["hook", "context", "product_reveal", "feature", "proof", "offer", "cta", "closing"] },
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "onboarding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposed_by"],
+      "$comment": "Traçabilité de la production du Brand Pack (B15).",
+      "properties": {
+        "proposed_by": { "enum": ["llm", "franco"] },
+        "parent_version": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Version dont celle-ci dérive. Absent pour la première version."
+        },
+        "change_reason": { "type": "string", "maxLength": 500 }
+      }
+    },
+
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["brand_sheet_uri", "demo_render_uri", "demo_template_id", "demo_template_version"],
+      "$comment": "Pièces envoyées à Franco pour validation (B15). Le rendu de démonstration doit avoir passé toutes les règles de la composition.",
+      "properties": {
+        "brand_sheet_uri": { "$ref": "#/$defs/brand_uri" },
+        "demo_render_uri": { "$ref": "#/$defs/brand_uri" },
+        "demo_template_id": { "type": "string", "pattern": "^tpl_[a-z0-9_]{3,40}$" },
+        "demo_template_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+      }
+    },
+
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approved_at", "audit_id"],
+      "$comment": "Approbation de Franco par commande admin (D29), avec entrée dans le journal d'audit.",
+      "properties": {
+        "approved_at": { "type": "string", "format": "date-time" },
+        "audit_id": { "type": "string", "pattern": "^aud_[a-z0-9]{6,32}$" }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "$comment": "B4 : aucune police de licence inconnue au-delà du brouillon.",
+      "if": { "properties": { "status": { "enum": ["pending_review", "published", "archived"] } } },
+      "then": {
+        "required": ["review"],
+        "properties": {
+          "typography": {
+            "properties": {
+              "fonts": {
+                "items": {
+                  "properties": {
+                    "license": { "properties": { "type": { "not": { "const": "unknown" } } } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "enum": ["published", "archived"] } } },
+      "then": { "required": ["approval"] }
+    }
+  ],
+
+  "$defs": {
+
+    "hex_color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+
+    "token_ref": {
+      "type": "string",
+      "enum": ["surface_dark", "surface_light", "surface_accent", "accent_primary", "accent_secondary", "text_on_dark", "text_on_light", "text_on_accent", "cta_background", "cta_text", "scrim"]
+    },
+
+    "easing": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 4,
+      "maxItems": 4,
+      "$comment": "cubic-bezier(x1, y1, x2, y2). Jamais un nom."
+    },
+
+    "brand_uri": {
+      "type": "string",
+      "pattern": "^brand/cli_[a-z0-9]{6,32}/",
+      "$comment": "Chemin R2 sous le préfixe permanent du client (D27). Le client_id du chemin doit être celui du Brand Pack (vérifié par le code, D30)."
+    },
+
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["font_ref", "family", "weight", "asset_uri", "format", "license"],
+      "properties": {
+        "font_ref": { "type": "string", "pattern": "^fnt_[a-z0-9_]{2,32}$" },
+        "family": { "type": "string" },
+        "weight": { "type": "integer", "minimum": 100, "maximum": 900, "multipleOf": 100 },
+        "style": { "enum": ["normal", "italic"], "default": "normal" },
+        "asset_uri": { "$ref": "#/$defs/brand_uri",
+          "$comment": "Fichier de police STOCKÉ avec le Brand Pack, jamais un nom à charger." },
+        "format": { "enum": ["woff2", "ttf", "otf"] },
+        "license": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "$comment": "B4. Le LLM d'onboarding peut identifier une police, jamais en connaître la licence. unknown n'est toléré qu'en brouillon.",
+          "properties": {
+            "type": { "enum": ["ofl", "apache", "commercial", "client_provided", "unknown"] },
+            "reference": { "type": "string", "maxLength": 300 },
+            "confirmed_by": { "enum": ["client", "franco"],
+              "$comment": "client : le client a fourni le fichier et confirmé la licence (réponse enregistrée). franco : police libre de remplacement validée." },
+            "confirmed_at": { "type": "string", "format": "date-time" }
+          },
+          "if": { "properties": { "type": { "enum": ["commercial", "client_provided"] } } },
+          "then": { "required": ["reference", "confirmed_by", "confirmed_at"] }
+        }
+      }
+    },
+
+    "type_role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["font_ref", "size_ratio", "min_size_px", "line_height", "max_lines"],
+      "properties": {
+        "font_ref": { "type": "string", "pattern": "^fnt_[a-z0-9_]{2,32}$" },
+        "size_ratio": { "type": "number", "minimum": 0.01, "maximum": 0.2,
+          "$comment": "Fraction de canvas.height. 0,045 sur 1920 px donne 86 px." },
+        "min_size_px": { "type": "integer", "minimum": 8 },
+        "line_height": { "type": "number", "minimum": 0.8, "maximum": 2.5 },
+        "max_lines": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "letter_spacing_em": { "type": "number", "minimum": -0.1, "maximum": 0.5 },
+        "uppercase": { "type": "boolean", "default": false }
+      }
+    },
+
+    "text_animation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "duration_ms", "easing"],
+      "$comment": "Le décalage entre éléments n'est plus ici : il vient de timing.stagger_ms, une seule source.",
+      "properties": {
+        "type": { "enum": ["fade_in", "slide_in", "scale_in", "mask_reveal"] },
+        "direction": { "enum": ["up", "down", "left", "right"] },
+        "duration_ms": { "type": "integer", "minimum": 100, "maximum": 2000 },
+        "easing": { "$ref": "#/$defs/easing" }
+      },
+      "if": { "properties": { "type": { "const": "slide_in" } } },
+      "then": { "required": ["direction"] }
+    },
+
+    "transition_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["duration_ms", "easing"],
+      "$comment": "Le type de transition est la clé de transition_map.",
+      "properties": {
+        "direction": { "enum": ["up", "down", "left", "right"] },
+        "duration_ms": { "type": "integer", "minimum": 0, "maximum": 1200 },
+        "easing": { "$ref": "#/$defs/easing" }
+      }
+    },
+
+    "camera_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scale_start", "scale_end", "easing"],
+      "$comment": "Cohérence vérifiée par le code (B5) : static à échelle constante, push_in croissant, pull_back décroissant.",
+      "properties": {
+        "scale_start": { "type": "number", "minimum": 0.5, "maximum": 3 },
+        "scale_end": { "type": "number", "minimum": 0.5, "maximum": 3 },
+        "drift_x": { "type": "number", "minimum": -0.3, "maximum": 0.3 },
+        "drift_y": { "type": "number", "minimum": -0.3, "maximum": 0.3 },
+        "easing": { "$ref": "#/$defs/easing" }
+      }
+    },
+
+    "effect_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["density", "color_tokens"],
+      "properties": {
+        "density": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "color_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/token_ref" },
+          "minItems": 1,
+          "maxItems": 4
+        }
+      }
+    },
+
+    "sound_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "$comment": "Un son de la bibliothèque partagée (provenance et licence vérifiées, R16), ou none explicite.",
+      "properties": {
+        "kind": { "enum": ["sound", "none"] },
+        "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
+        "gain_db": { "type": "number", "minimum": -30, "maximum": 0 }
+      },
+      "if": { "properties": { "kind": { "const": "sound" } } },
+      "then": { "required": ["asset_ref", "gain_db"] },
+      "else": { "not": { "anyOf": [ { "required": ["asset_ref"] }, { "required": ["gain_db"] } ] } }
+    },
+
+    "normalized_asset": {
+      "$ref": "#/$defs/asset_base",
+      "unevaluatedProperties": false
+    },
+
+    "asset_base": {
+      "type": "object",
+      "$comment": "Base commune, sans additionalProperties : les variantes logo et produit l'étendent, et unevaluatedProperties ferme chaque variante. (La v1 combinait additionalProperties: false et allOf, ce qui rejetait clear_space_ratio et focal_point.)",
+      "required": ["asset_ref", "uri", "kind", "width", "height", "bytes", "checksum", "received_as", "source_ref"],
+      "properties": {
+        "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
+        "uri": { "$ref": "#/$defs/brand_uri" },
+        "kind": { "enum": ["still", "video", "sequence_360", "vector"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "checksum": { "$ref": "#/$defs/sha256" },
+        "has_alpha": { "type": "boolean", "default": false },
+        "dominant_luminance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "received_as": {
+          "enum": ["document", "photo"],
+          "$comment": "Canal de réception WhatsApp du brut. photo = recompressé en JPEG par WhatsApp (B6)."
+        },
+        "source_ref": { "$ref": "#/$defs/brand_uri",
+          "$comment": "Brut conservé, pour rejouer la normalisation sans redemander l'asset." }
+      }
+    },
+
+    "logo_asset": {
+      "allOf": [
+        { "$ref": "#/$defs/asset_base" },
+        {
+          "type": "object",
+          "required": ["clear_space_ratio", "min_width_px"],
+          "$comment": "Un logo doit avoir été reçu en document et être détouré (B6).",
+          "properties": {
+            "received_as": { "const": "document" },
+            "has_alpha": { "const": true },
+            "clear_space_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "min_width_px": { "type": "integer", "minimum": 16 }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "product_asset": {
+      "allOf": [
+        { "$ref": "#/$defs/asset_base" },
+        {
+          "type": "object",
+          "required": ["focal_point", "label"],
+          "properties": {
+            "label": { "type": "string", "maxLength": 80 },
+            "sku": { "type": "string", "maxLength": 60 },
+            "focal_point": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["x", "y"],
+              "properties": {
+                "x": { "type": "number", "minimum": 0, "maximum": 1 },
+                "y": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string", "maxLength": 40 },
+              "maxItems": 10,
+              "$comment": "Catalogue transmis au Storyboard, jamais les images (B11)."
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

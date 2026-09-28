@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/storyboard.v2.json",
+  "title": "Storyboard — contrat d'intention (sortie agent Storyboard)",
+  "$comment": "Couche INTENTION, v2 (26 septembre 2026, décisions D1–D36). Le Storyboard décide QUOI dire, dans quel ordre, avec quelle voix et quels assets. Il ne contient AUCUN choix de montage (caméra, transition, profondeur, effet, musique précise) : ces choix appartiennent au Monteur, dans le vocabulaire fermé du montage_plan (D21). Aucun pixel, aucune milliseconde, aucun hex, aucune police. Les durées sont des CIBLES : la durée réelle est dérivée de la voix off (D20). Validé par storyboard.rules.md (S1–S11) AVANT présentation au client (D24).",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "client_id", "job_type", "storyboard_version", "brand_pack", "brief", "delivery", "voiceover", "music", "scenes", "boundaries"],
+
+  "properties": {
+    "schema_version": {
+      "const": "2.0",
+      "$comment": "Version du CONTRAT, pas du document."
+    },
+
+    "project_id": { "type": "string", "pattern": "^proj_[a-z0-9]{6,32}$" },
+
+    "client_id": {
+      "type": "string",
+      "pattern": "^cli_[a-z0-9]{6,32}$",
+      "$comment": "Propriétaire du storyboard. Tout asset et le Brand Pack référencés lui appartiennent (S1, D30)."
+    },
+
+    "job_type": {
+      "const": "video",
+      "$comment": "Un storyboard n'existe que pour une vidéo. Visuel statique et retouche photo suivent leur propre pipeline (D28, S2)."
+    },
+
+    "storyboard_version": {
+      "type": "integer",
+      "minimum": 1,
+      "$comment": "Incrémenté à chaque révision du storyboard pour un même projet."
+    },
+
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parent_version", "reason", "changed_scene_ids", "client_message"],
+      "$comment": "Absent à la création. Deux raisons seulement (S10) : correction du storyboard par le client AVANT génération, ou correction factuelle APRÈS livraison, dans les 7 jours (D26). Une question de goût après livraison n'est pas une révision : c'est un nouveau projet.",
+      "properties": {
+        "parent_version": { "type": "integer", "minimum": 1 },
+        "reason": { "enum": ["client_feedback", "correction"] },
+        "changed_scene_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scene_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "client_message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "$comment": "Message du client, verbatim. Sert à l'audit et à trancher un litige correction / goût."
+        }
+      }
+    },
+
+    "brand_pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["brand_pack_id", "version"],
+      "$comment": "RÉFÉRENCE uniquement. Jamais de couleur, de police ni de logo inline.",
+      "properties": {
+        "brand_pack_id": { "type": "string", "pattern": "^bp_[a-z0-9]{6,32}$" },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objective", "audience", "tone", "language"],
+      "properties": {
+        "objective": {
+          "enum": ["awareness", "product_launch", "promotion", "announcement", "demo", "education", "social_proof", "retargeting"],
+          "$comment": "Pubs, démos et annonces (périmètre produit)."
+        },
+        "audience": { "type": "string", "minLength": 3, "maxLength": 300 },
+        "tone": {
+          "type": "array",
+          "items": { "enum": ["energique", "premium", "chaleureux", "sobre", "ludique", "urgent", "rassurant"] },
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "$comment": "Intention de ton. Le Monteur la traduit en style, musique et rythme via son vocabulaire fermé."
+        },
+        "language": {
+          "enum": ["fr", "en", "ar"],
+          "$comment": "Langue du texte à l'écran et de la voix off. Accent local et langues locales : reportés."
+        },
+        "client_constraints": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 200 },
+          "maxItems": 10,
+          "$comment": "Contraintes explicites du client (\"ne pas montrer le prix\", \"logo obligatoire en fin\"). Reprises telles quelles dans qa.checklist de la composition, présentée à Franco (D22)."
+        }
+      }
+    },
+
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "platforms", "target_duration_s"],
+      "$comment": "Contraintes de destination. Les budgets d'encodage n'apparaissent plus ici : ils sont calculés dans la composition (R2), une fois la durée réelle connue.",
+      "properties": {
+        "format": { "const": "9:16", "$comment": "D12." },
+        "platforms": {
+          "type": "array",
+          "items": { "enum": ["tiktok_shop", "facebook_ads", "whatsapp_status"] },
+          "minItems": 1,
+          "uniqueItems": true,
+          "$comment": "Informe le Monteur (rythme, appel à l'action). La zone de sécurité est unique quelles que soient les plateformes."
+        },
+        "target_duration_s": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 30,
+          "$comment": "Cible. La durée estimée est calculée par S5, la durée réelle par la voix off (D20). 30 s maximum pour passer sur les trois plateformes."
+        }
+      }
+    },
+
+    "voiceover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "$comment": "Choix du client (D19). Si activée, la voix off devient l'horloge du montage (D20) et chaque scène porte son script.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "voice_id": {
+          "type": "string",
+          "pattern": "^voice_[a-z0-9_]{2,32}$",
+          "$comment": "Voix du catalogue, choisie par le client. Existence et langue vérifiées par S4."
+        }
+      },
+      "if": { "properties": { "enabled": { "const": true } } },
+      "then": { "required": ["voice_id"] },
+      "else": { "not": { "required": ["voice_id"] } }
+    },
+
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled"],
+      "$comment": "Le client dit seulement s'il veut une musique. La piste elle-même est choisie par le Monteur dans la bibliothèque, à partir du ton (D21, D32).",
+      "properties": {
+        "enabled": { "type": "boolean" }
+      }
+    },
+
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/scene" },
+      "$comment": "L'ORDRE DU TABLEAU EST LA SEULE SOURCE DE VÉRITÉ. Pas de champ order."
+    },
+
+    "boundaries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/boundary" },
+      "$comment": "Une frontière appartient à l'espace ENTRE deux scènes. Longueur = len(scenes) - 1, dans l'ordre (S7). Tableau vide pour une seule scène."
+    }
+  },
+
+  "if": {
+    "properties": { "voiceover": { "properties": { "enabled": { "const": true } } } }
+  },
+  "then": {
+    "properties": {
+      "scenes": { "items": { "required": ["voiceover_script"] } }
+    }
+  },
+  "else": {
+    "properties": {
+      "scenes": { "items": { "not": { "required": ["voiceover_script"] } } }
+    }
+  },
+
+  "$defs": {
+
+    "scene_id": {
+      "type": "string",
+      "pattern": "^sc_[a-z0-9]{2,16}$",
+      "$comment": "IMMUABLE pour la vie du projet. Jamais renuméroté : sans ID stable, aucune correction ciblée n'est possible."
+    },
+
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scene_id", "purpose", "intent", "duration_target_s", "assets"],
+      "properties": {
+
+        "scene_id": { "$ref": "#/$defs/scene_id" },
+
+        "purpose": {
+          "enum": ["hook", "context", "product_reveal", "feature", "proof", "offer", "cta", "closing"],
+          "$comment": "Rôle narratif. Sert au Monteur à choisir le template. Figé lors d'une correction factuelle (S10)."
+        },
+
+        "intent": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 400,
+          "$comment": "Ce que la scène doit communiquer, en une phrase. Repris dans le résumé client (S11)."
+        },
+
+        "duration_target_s": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 12.0,
+          "multipleOf": 0.1,
+          "$comment": "CIBLE de temps à l'écran. Avec voix off, la durée réelle est dérivée du segment parlé (D20) ; sans voix off, S5 impose le plancher de lecture."
+        },
+
+        "voiceover_script": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400,
+          "pattern": "^[^0-9%€$£¥#@&*+=/\\\\<>|_~^]*$",
+          "$comment": "Obligatoire si voiceover.enabled, interdit sinon. Forme PARLÉE uniquement : ni chiffre, ni symbole (\"quinze mille francs CFA\", pas \"15 000 FCFA\"). Le motif attrape chiffres et symboles ; les abréviations (FCFA, km, n°) sont vérifiées par S4. Couvert par content_hash : changer un mot regénère la voix off de cette scène."
+        },
+
+        "copy": {
+          "type": "object",
+          "additionalProperties": false,
+          "$comment": "Texte à l'écran. Sa TAILLE, sa POSITION, sa COULEUR et son ANIMATION ne relèvent pas du Storyboard.",
+          "properties": {
+            "headline": { "$ref": "#/$defs/text_block" },
+            "support": { "$ref": "#/$defs/text_block" }
+          }
+        },
+
+        "assets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/asset_slot" }
+        },
+
+        "must_show": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 120 },
+          "maxItems": 5,
+          "$comment": "Assertions vérifiables sur le rendu (\"le logo est lisible\", \"le prix est affiché\"). Reprises dans qa.checklist de la composition, présentée à Franco avec l'aperçu. Pas d'appréciation esthétique."
+        },
+
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "$comment": "SHA-256 du contenu canonique de la scène, script de voix off inclus (S9). Écrit par le validateur, jamais par le LLM."
+        }
+      }
+    },
+
+    "text_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content", "source"],
+      "properties": {
+        "content": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "emphasis": {
+          "enum": ["normal", "strong"],
+          "default": "normal",
+          "$comment": "Hiérarchie relative, pas taille absolue."
+        },
+        "source": {
+          "enum": ["client", "generated"],
+          "$comment": "Explicite, sans valeur par défaut. client = verbatim, reformulation interdite. Obligatoire pour toute allégation : prix, notation, garantie, mention légale (S6)."
+        }
+      }
+    },
+
+    "asset_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "source", "kind"],
+      "$comment": "Un besoin d'asset, pas un fichier. asset_ref et generation_brief sont mutuellement exclusifs (S3).",
+      "properties": {
+        "role": {
+          "enum": ["subject", "background", "logo", "supporting"],
+          "$comment": "subject = le sujet réel de la scène. Un seul subject par scène."
+        },
+        "source": { "enum": ["client", "brand_pack", "generated"] },
+        "kind": {
+          "enum": ["still", "video", "sequence_360", "vector"],
+          "$comment": "Nature de l'asset. C'est elle qui borne les choix de caméra du Monteur (règles du montage_plan)."
+        },
+        "asset_ref": {
+          "type": "string",
+          "pattern": "^ast_[a-z0-9_]{3,40}$",
+          "$comment": "Doit exister sous le préfixe R2 du client ou dans le Brand Pack au moment de la validation (S3)."
+        },
+        "generation_brief": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["prompt"],
+          "$comment": "Le prompt entre dans la generation_key : même prompt + même modèle + même seed = asset réutilisé, pas repayé. Figé lors d'une correction factuelle (S10).",
+          "properties": {
+            "prompt": { "type": "string", "minLength": 10, "maxLength": 600 },
+            "negative_prompt": { "type": "string", "maxLength": 300 },
+            "seed": { "type": "integer", "minimum": 0 }
+          }
+        }
+      },
+      "if": { "properties": { "source": { "const": "generated" } } },
+      "then": { "required": ["generation_brief"], "not": { "required": ["asset_ref"] } },
+      "else": { "required": ["asset_ref"], "not": { "required": ["generation_brief"] } }
+    },
+
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from_scene", "to_scene"],
+      "$comment": "Le type de transition (fade, slide, zoom_punch) est une décision du Monteur. Le Storyboard n'exprime qu'une intention de rythme, facultative.",
+      "properties": {
+        "from_scene": { "$ref": "#/$defs/scene_id" },
+        "to_scene": { "$ref": "#/$defs/scene_id" },
+        "continuity": {
+          "enum": ["continue", "break"],
+          "$comment": "continue = même idée qui se prolonge. break = changement de sujet ou d'énergie."
+        }
+      }
+    }
+  }
+}

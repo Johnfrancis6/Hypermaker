@@ -22,7 +22,10 @@ function profilVideo(e, entree) {
   return {
     filtre: `${entree}scale=${l}:${h}:flags=lanczos,format=${v.pix_fmt}`,
     options: [
-      "-c:v", "libx264", "-profile:v", v.profile, "-level:v", v.level, "-pix_fmt", v.pix_fmt,
+      // -threads 1 : x264 multi-thread n'est pas reproductible octet pour
+      // octet (mesuré : mêmes PNG, deux fichiers différents ; -threads 1,
+      // deux fichiers identiques). Épinglé comme le prévoit É-14.
+      "-c:v", "libx264", "-threads", "1", "-profile:v", v.profile, "-level:v", v.level, "-pix_fmt", v.pix_fmt,
       "-bf", String(v.b_frames), "-b:v", `${v.bitrate_kbps}k`, "-maxrate", `${v.maxrate_kbps}k`, "-bufsize", `${v.bufsize_kbps}k`,
       "-g", String(v.keyint), "-preset", v.preset,
     ],

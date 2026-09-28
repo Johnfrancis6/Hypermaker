@@ -267,9 +267,12 @@ publication, par analyse statique du HTML et du CSS.
   (`HM-Demo-Sans`, puis `HM-{client}-{rôle}` en production), déclarée par un
   `@font-face` explicite généré depuis `composition.fonts[]`. Le moteur ne peut
   alors compléter la famille ni depuis son propre paquet de polices, ni depuis
-  Google Fonts. `document.fonts.check()` vrai signifie donc « notre fichier s'est
-  chargé », et un `@font-face` oublié produit un échec franc au lieu d'un repli
-  silencieux vers une homonyme publique.
+  Google Fonts. **Attention : `document.fonts.check()` ne prouve pas le
+  chargement.** Mesuré sur Chrome 152 : il répond vrai pour une famille qui
+  n'existe nulle part, sur une page sans aucun `@font-face`. La preuve est une
+  `FontFace` de la famille privée, au bon poids et au bon style, à l'état
+  `loaded` dans `document.fonts`. Le nom privé garantit qu'aucune homonyme
+  publique ne peut satisfaire cette preuve à la place de notre fichier.
 - **Aucune durée en dur** dans une animation ou une transition CSS : les durées
   viennent de la chorégraphie résolue (T8)
 - **Aucune ressource distante** : pas d'URL `http(s)` dans le HTML, le CSS ou le

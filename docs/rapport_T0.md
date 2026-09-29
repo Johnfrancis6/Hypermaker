@@ -1,7 +1,8 @@
 # Rapport T0-technique : le moteur HyperFrames
 
-*29/09/2026. Recette de référence : commit `6dc5e5d`, arbre propre avant et
-après, `outils/recette-t0.sh`. Toutes les valeurs ci-dessous sont mesurées.
+*29/09/2026. Recette de référence : commit `13c9dc1`, arbre propre avant et
+après, `outils/recette-t0.sh`. Les quatre décisions prises après la première
+version de ce rapport y sont appliquées. Toutes les valeurs ci-dessous sont mesurées.
 Celles qui ne le sont pas sont signalées comme telles.*
 
 Périmètre : T0-technique (brief §3), c'est-à-dire Q1, Q2, Q3 et les
@@ -44,14 +45,16 @@ conteneur, et pas `moteur_version` seul (brief §9).
 | Critère | Mesure (A / B / C) | Verdict |
 |---|---|---|
 | 1080×1920, H.264, 30 fps fixe, ≤ 30 s | 1080×1920, h264, `30/1`, **durées de paquets toutes égales (512)**, 450 frames, 15 000 ms | ✔ |
-| Aperçu : profil Main, `has_b_frames` = 0, yuv420p, ≤ 16 Mo | Main 4.0, 0, yuv420p ; 1,05 / 0,99 / 1,86 Mo (plafond déclaré 15 Mio) | ✔ |
+| Aperçu : profil Main, `has_b_frames` = 0, yuv420p, ≤ 16 Mo | Main 4.0, 0, yuv420p ; 1,02 / 0,96 / 1,87 Mo (plafond déclaré 15 Mio) | ✔ |
 | Piste audio AAC stéréo présente même si silencieuse | aac, 2 canaux, 48 kHz sur les deux sorties | ✔ |
-| … à ≥ 128 kb/s | **2,3 kbps mesurés** sur les deux sorties : un encodeur AAC ne peut pas remplir du silence jusqu'à 128 kbps | **✘ sur le master** (décision en attente) |
+| … à ≥ 128 kb/s | Débit **déclaré** 128 kbps (contrôlé) ; débit **mesuré** 2,3 kbps en silence, « non applicable : silent_fallback » selon R9 amendée (`fcda566`) | ✔ |
+| Espace colorimétrique (ajouté le 29/09) | BT.709 converti et étiqueté, plage tv, sur les deux sorties ; `#FF5A1F` relu à 2 niveaux près | ✔ |
 | Deux rendus → hashs identiques | rendu seul, puis deux rendus du harnais : 3 sur 3 identiques par jeu ; fichiers encodés identiques aussi | ✔ |
-| Rendu d'une vidéo de 15 s en ≤ 5 min | rendu PNG **15,0 / 16,5 / 16,6 s** sans strace ; encodage des deux sorties 22,8 / 23,8 / 28,3 s | ✔ |
-| Aucune ligne de code modifiée entre les 3 jeux | recette au commit `6dc5e5d`, arbre propre vérifié avant et après | ✔ |
+| Rendu d'une vidéo de 15 s en ≤ 5 min | rendu PNG **15,0 / 16,5 / 16,6 s** sans strace ; encodage des deux sorties 22,7 / 22,8 / 26,2 s | ✔ |
+| Aucune ligne de code modifiée entre les 3 jeux | recette au commit `13c9dc1`, arbre propre vérifié avant et après | ✔ |
 
-Hashes de référence de `6dc5e5d` (`hash_frames`) :
+Hashes de référence (`hash_frames`, inchangés de `6dc5e5d` à `13c9dc1` : seuls
+l'encodage et la vérification ont changé depuis) :
 - A : `47c4879e5c7c…`
 - B : `43191ebfa67c…`
 - C : `145984882f69…`
@@ -190,34 +193,36 @@ frontière**. Couches :
 
 1. **`document.fonts.check()` ne prouve pas le chargement.** Il répond vrai
    pour une famille inexistante, sur une page sans aucun `@font-face`. La
-   preuve est une `FontFace` de la famille privée à l'état `loaded`. T11 est
-   corrigé. **R4 et B4 prescrivent `check()`** : à amender (décision en
-   attente).
+   preuve est une `FontFace` de la famille privée à l'état `loaded`.
+   **R4 et B4 réécrites** (`80231ec`), T11 corrigé (`e0167fb`).
 2. **Chrome n'est pas épinglé par le moteur**, qui le télécharge : 12 min au
    premier rendu. L'image de `job-produce` **doit** embarquer Chrome, faute
    de quoi le budget d'`ASSETS_READY` saute (brief §9).
 3. **Le moteur a des variables JSON** (`--variables`), contrairement à ce
    qu'écrit le §5.1. Non utilisées, par décision (brief §8).
-4. **Espace colorimétrique non spécifié** : la conversion RGBA → yuv420p
-   utilise la matrice par défaut de swscale (BT.601), sans étiquette de
-   couleur. `composition.encode` ne dit rien. C'est donc une valeur que
-   l'encodeur fixe sans que la composition l'ait décidée.
-5. **Règles d'écriture des templates et du runtime issues de T0**, à
-   inscrire dans un contrat ou dans le §5.1 :
-   - état à t = 0 dans le DOM, jamais deux instructions contradictoires à une même position ;
-   - `will-change: opacity` sur toute opacité animée ;
-   - un seul worker ;
-   - x264 à un thread.
+4. **L'espace colorimétrique n'était décidé par personne.** swscale
+   convertissait en BT.601 sans étiquette, et l'accent `#FF5A1F` relu en
+   BT.709 ressortait en 255,99,25. **Réglé dans le contrat**
+   (`ffcd8b3`) : `encode.*.video.color` fixé à BT.709 en plage tv,
+   appliqué par l'encodeur (matrice et étiquettes), et vérifié par R9 et par
+   un test sur la couleur elle-même.
+5. **Les règles d'écriture et d'exécution issues de T0 sont inscrites**
+   (`13c9dc1`) :
+   - dans T11 : état à t = 0 dans le DOM, `will-change` sur toute opacité animée ;
+   - dans le §5.1 : un seul worker, x264 à un thread.
 
-## Décisions en attente
+## Décisions prises le 29/09
 
-1. **Débit audio du silence.** R9 exige ≥ 128 kbps sur le master, et le
-   critère T0 l'exige « même si silencieuse ». Une piste AAC silencieuse
-   mesure 2,3 kbps. Le contrôle reste strict et échoue.
-2. **R4 / B4** : remplacer `document.fonts.check()` par la preuve
-   `FontFace loaded`.
-3. **Espace colorimétrique** : qui le décide, et dans quel champ.
-4. **Où inscrire les règles du point 5** ci-dessus.
+| Question | Décision | Commit |
+|---|---|---|
+| Débit audio du silence | Débit optimal gardé ; R9 contrôle le débit déclaré, le débit mesuré est « non applicable » en `silent_fallback` | `fcda566` |
+| R4 / B4 | Réécrites : preuve `FontFace loaded` | `80231ec` |
+| Espace colorimétrique | Dans la composition : BT.709, plage tv | `ffcd8b3` |
+| Où inscrire les règles de T0 | T11 et §5.1 | `13c9dc1` |
+
+**Changement de contrat à signaler** : `encode.*.video.color` est un **champ
+nouveau** et requis dans `Composition.schema.json`, ajouté sur décision
+explicite. Le compilateur de T3 devra le produire.
 
 ## Limites de ce rapport
 

@@ -258,3 +258,20 @@ refuse.
 Chiffres à consigner : lint 62 à 110 ms pour 450 frames (échantillonnage
 inutile, en production aussi) ; rendu 29 s pour 15 s strace compris, à
 remesurer sans strace pour le rapport.
+
+═══ 12. DÉCISIONS DU 29/09 APRÈS LE RAPPORT T0 ═══
+
+- Débit audio du silence : on garde le débit optimal. R9 amendée : « ≥ 128
+  kbps » porte sur le débit déclaré, toujours ; le débit mesuré ne
+  s'applique que hors silent_fallback (fcda566).
+- R4 et B4 réécrites : la preuve de chargement est une FontFace « loaded »
+  de la famille privée ; document.fonts.check() ne prouve rien (80231ec).
+- Espace colorimétrique décidé par la composition : champ nouveau et requis
+  encode.*.video.color, BT.709 partout, plage tv (ffcd8b3). Le compilateur
+  de T3 devra le produire.
+- Règles issues de T0 inscrites : T11 (état à t = 0 dans le DOM,
+  will-change sur toute opacité animée) et §5.1 règles 6 et 7 (un worker,
+  x264 à un thread) (13c9dc1).
+- T0-technique clos : recette verte au commit 13c9dc1 (docs/rapport_T0.md).
+  Portes ouvertes par ce verdict : compilateur, templates supplémentaires
+  (T2). Toujours fermées : audio et Monteur (T0b), critère B (assets client).

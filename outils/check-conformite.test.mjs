@@ -93,13 +93,30 @@ test("refuse : taille au-dessus de encode.max_bytes", () => {
   assert.ok(echecs(verifier(c, F.reference, "preview")).includes("taille ≤ encode.max_bytes"));
 });
 
-test("master : une piste silencieuse mesure ~2 kbps et échoue le seuil de 128 kbps (R9)", () => {
+test("master silencieux : ~2 kbps mesurés, non applicable ; débit déclaré contrôlé (R9)", () => {
   const c = structuredClone(C);
   c.encode.master = structuredClone(c.encode.preview); // mêmes réglages vidéo que la référence
   const r = verifier(c, F.reference, "master");
-  const debit = r.controles.find((x) => x.controle.startsWith("débit audio"));
-  assert.equal(debit.ok, false);
-  assert.ok(debit.mesure < 10, `mesuré ${debit.mesure} kbps`);
+  const mesure = r.controles.find((x) => x.controle === "débit audio mesuré ≥ 128 kbps");
+  assert.equal(mesure.ok, null);
+  assert.match(mesure.attendu, /non applicable : silent_fallback/);
+  assert.ok(mesure.mesure < 10, `mesuré ${mesure.mesure} kbps`);
+  assert.equal(r.controles.find((x) => x.controle === "débit audio déclaré ≥ 128 kbps").ok, true);
+  assert.equal(r.ok, true, echecs(r).join(" | "));
+});
+
+test("refuse : débit audio déclaré sous 128 kbps sur le master", () => {
+  const c = structuredClone(C);
+  c.encode.master = structuredClone(c.encode.preview);
+  c.encode.master.audio.bitrate_kbps = 96; // hors énumération du schéma : on teste le vérificateur seul
+  assert.ok(echecs(verifier(c, F.reference, "master")).includes("débit audio déclaré ≥ 128 kbps"));
+});
+
+test("refuse : hors silent_fallback, le silence mesuré (~2 kbps) échoue le seuil de 128 kbps", () => {
+  const c = structuredClone(C);
+  c.encode.master = structuredClone(c.encode.preview);
+  c.audio.silent_fallback = false;
+  assert.ok(echecs(verifier(c, F.reference, "master")).includes("débit audio mesuré ≥ 128 kbps"));
 });
 
 test("R10 non applicable en silent_fallback : consigné, jamais compté comme succès ni rejet", () => {

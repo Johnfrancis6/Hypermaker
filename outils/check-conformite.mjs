@@ -92,9 +92,15 @@ export function verifier(composition, fichier, sortie) {
   c("R9", "codec audio", "aac", aa.codec_name, aa.codec_name === "aac");
   c("R9/R10", "canaux", 2, aa.channels, aa.channels === 2);
   c("R10", "fréquence d'échantillonnage", 48000, Number(aa.sample_rate), Number(aa.sample_rate) === 48000);
+  // R9 : ≥ 128 kbps porte sur le débit déclaré, toujours ; sur le débit
+  // mesuré seulement hors silent_fallback (une piste silencieuse à 128 kbps
+  // mesure ~2 kbps, et c'est le bon débit pour du silence).
   const kbps = Math.round(Number(aa.bit_rate) / 100) / 10;
-  if (sortie === "master") c("R9", "débit audio mesuré ≥ 128 kbps", "≥ 128", kbps, kbps >= 128);
-  else c("R9", "débit audio mesuré (informatif pour l'aperçu)", "—", kbps, null);
+  if (sortie === "master") {
+    c("R9", "débit audio déclaré ≥ 128 kbps", "≥ 128", e.audio.bitrate_kbps, e.audio.bitrate_kbps >= 128);
+    if (composition.audio.silent_fallback) c("R9", "débit audio mesuré ≥ 128 kbps", "non applicable : silent_fallback", kbps, null);
+    else c("R9", "débit audio mesuré ≥ 128 kbps", "≥ 128", kbps, kbps >= 128);
+  } else c("R9", "débit audio mesuré (informatif pour l'aperçu)", "—", kbps, null);
 
   c("R9", "taille ≤ encode.max_bytes", `≤ ${e.max_bytes}`, taille, taille <= e.max_bytes);
   c("R9", "durée = canvas.duration_ms ± 100 ms", canvas.duration_ms, Math.round(duree * 1000), Math.abs(duree * 1000 - canvas.duration_ms) <= 100);

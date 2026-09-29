@@ -279,6 +279,14 @@ Le master part en `document` : WhatsApp ne le transcode pas et ne le lit pas en
 ligne, d'où la tolérance sur le profil et les B-frames. Il reste en H.264 et AAC,
 exigés par les plateformes publicitaires.
 
+**Débit audio du master : déclaré ou mesuré.** « ≥ 128 kbps » porte sur le débit
+d'encodage déclaré, `encode.master.audio.bitrate_kbps`, toujours. Le débit
+**mesuré** ne s'applique que si `audio.silent_fallback` est faux. Une piste
+silencieuse encodée à 128 kbps mesure environ 2 kbps (mesuré en T0 : 2,3 kbps) :
+l'encodeur n'a rien à coder, et on garde ce débit, qui est le bon pour du
+silence. Le vérificateur consigne alors « non applicable : silent_fallback »,
+ni succès ni rejet, comme pour le volume en R10.
+
 Si un ré-encodage est déclenché pour dépassement de taille, **relancer R9 en
 entier** sur le fichier concerné : un remux peut réintroduire des B-frames selon
 les paramètres hérités.

@@ -118,6 +118,17 @@
       //    moteur — frame 0 vide dans tous les rendus, frames 150 à 224 vides
       //    dans un rendu sur six. Sur une page fraîche, seek(0) ne rend rien :
       //    l'état à 0 doit donc déjà être dans le DOM.
+      //
+      //    will-change: opacity sur tout élément dont l'opacité s'anime. Sans
+      //    lui, Chrome choisit AU LANCEMENT, par heuristique, de composer ou non
+      //    l'élément sur sa propre couche ; les deux chemins mélangent à 1 ou 2
+      //    niveaux près. Mesuré le 29/09 sur C : deux hash_frames stables
+      //    (d06a…, 575c…) selon le lancement, 12 rendus sur 15 différents de la
+      //    référence ; arrondir l'opacité au 1/255 ne change aucun pixel (ce
+      //    n'est pas la valeur) ; avec will-change, 16 rendus sur 16 identiques.
+      function animeOpacite(el) {
+        el.style.willChange = "opacity";
+      }
       function etatInitial(el, visible) {
         el.style.visibility = visible ? "inherit" : "hidden";
         el.style.opacity = visible ? "1" : "0";
@@ -127,6 +138,7 @@
         var section = scenes[i];
         var visibleA0 = sc.visible_debut_s === 0 && !sc.fondu_entree;
         etatInitial(section, visibleA0);
+        animeOpacite(section);
         if (sc.fondu_entree) {
           tl.fromTo(section, { autoAlpha: 0 }, { autoAlpha: 1, duration: sc.fondu_entree.duree_s, ease: ease(sc.fondu_entree.easing), immediateRender: false }, sc.fondu_entree.debut_s);
         } else if (!visibleA0) {
@@ -138,6 +150,7 @@
           var el = section.querySelector('[data-slot="' + s.slot + '"]');
           if (s.animation.type !== "fade_in") return echec(s.text_id + " : animation " + s.animation.type + " sans amplitude dans la composition, non rendable");
           el.style.opacity = "0"; // fade_in part de 0, quelle que soit sa position
+          animeOpacite(el);
           tl.fromTo(el, { opacity: 0 }, { opacity: 1, duration: s.animation.duree_s, ease: ease(s.animation.easing), immediateRender: false }, s.animation.debut_s);
         });
       });

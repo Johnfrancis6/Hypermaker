@@ -21,6 +21,12 @@
 // deux set() contradictoires à la position 0 donnaient une frame 0 vide dans
 // tous les rendus, et les frames 150 à 224 vides dans un rendu sur six.
 //
+// Opacité animée (R11) : tout élément dont l'opacité varie au cours de la
+// timeline doit porter will-change: opacity. Sans lui, Chrome choisit au
+// lancement de composer l'élément sur sa couche ou non, et les deux chemins
+// diffèrent de 1 à 2 niveaux (mesuré le 29/09 : deux hash_frames selon le
+// lancement).
+//
 // Réseau : pendant le lint, toute requête autre que file: ou data: fait
 // échouer (la page est ouverte depuis le disque, sans serveur).
 //
@@ -108,12 +114,14 @@ export async function linter(dossier) {
         return `${nomDe(i)} : ${x[i]} contre ${y[i]}`;
       };
       const initiale = signature(); // page fraîche, avant tout seek
+      const opacites = suivis.map(() => new Set());
       const signatures = [];
       const vus = new Set();
       const dejaSignale = new Set();
       for (let f = 0; f < d.frames; f++) {
         tl.seek(f / d.fps, false);
         signatures.push(signature());
+        suivis.forEach((el, i) => opacites[i].add(getComputedStyle(el).opacity));
         for (const c of cibles) {
           if (!visible(c.el)) continue;
           vus.add(c.id);
@@ -137,6 +145,11 @@ export async function linter(dossier) {
       for (const c of cibles) {
         if (!vus.has(c.id)) res.violations.push({ regle: "R5", element: c.id, raison: "jamais visible : non mesuré" });
       }
+      suivis.forEach((el, i) => {
+        if (opacites[i].size > 1 && !/\bopacity\b/.test(getComputedStyle(el).willChange)) {
+          res.violations.push({ regle: "R11", element: nomDe(i), raison: `opacité animée (${opacites[i].size} valeurs) sans will-change: opacity : chemin de composition choisi par Chrome au lancement` });
+        }
+      });
       // Passe arrière : même état à chaque frame, quel que soit le chemin.
       for (let f = d.frames - 1; f >= 0; f--) {
         tl.seek(f / d.fps, false);

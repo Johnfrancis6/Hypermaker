@@ -168,3 +168,14 @@ test("lint refuse (R11) : état dépendant de l'historique de seek (motif fautif
   assert.equal(r.ok, false);
   assert.match(raisons(r), /R11 .*(historique de seek|page fraîche).*sc_test/);
 });
+
+test("lint refuse (R11) : opacité animée sans will-change", async () => {
+  const r = await linter(rendu({ html: (h) => h, donnees: null }));
+  assert.equal(r.ok, true, raisons(r)); // témoin : le runtime pose will-change
+  const dir = rendu();
+  const p = path.join(dir, "hm-runtime.js");
+  fs.writeFileSync(p, fs.readFileSync(p, "utf8").replace('el.style.willChange = "opacity";', ""));
+  const r2 = await linter(dir);
+  assert.equal(r2.ok, false);
+  assert.match(raisons(r2), /R11 sc_01.*opacité animée .* sans will-change/);
+});

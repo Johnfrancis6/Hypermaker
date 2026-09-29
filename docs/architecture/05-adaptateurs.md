@@ -51,7 +51,7 @@ Erreurs : E_ASSET_MANQUANT · E_POLICE_MANQUANTE · E_SLOT_INCONNU
         · E_TIMEOUT · E_NON_DETERMINISTE · E_MOTEUR
 ```
 
-Cinq règles, qui sont le contrat réel :
+Sept règles, qui sont le contrat réel :
 
 1. **La sortie est muette.** Le moteur rend l'image, jamais le son. Tout
    l'audio est assemblé par FFmpeg (§7), donc la garantie -14 LUFS /
@@ -59,12 +59,16 @@ Cinq règles, qui sont le contrat réel :
    pas en jeu la conformité sonore. C'est la décision qui rend D7
    réversible à bon marché.
 2. **Aucun réseau pendant la capture** (R11). Les assets sont hydratés
-   sur disque, les polices sont dans l'image, `document.fonts.check()`
-   est vérifié avant la première frame. Une police absente est une
+   sur disque, les polices sont dans l'image, et chaque police est
+   prouvée chargée avant la première frame par une `FontFace` « loaded »
+   de sa famille privée (R4 ; `document.fonts.check()` ne prouve rien,
+   mesuré en T0). Une police absente est une
    erreur, pas un repli silencieux — un repli change le rendu sans le
    dire, et c'est le mode d'échec le plus discret du pipeline (R4).
-3. **Déterminisme vérifiable** : mêmes composition, assets et version du
-   moteur ⇒ même `hash_frames`. C'est le test d'acceptation de R11 et le
+3. **Déterminisme vérifiable** : mêmes composition, assets, version du
+   moteur **et version de Chrome** ⇒ même `hash_frames`. Le moteur
+   télécharge son propre Chrome : c'est l'image du conteneur qui épingle
+   le couple. C'est le test d'acceptation de R11 et le
    critère C de T0.
 4. **`verifier()` avant `rendre()`** : le bloc DOM (R5, R7, R8) tourne
    sur la page chargée, avant la première frame capturée, et son coût est
@@ -74,6 +78,20 @@ Cinq règles, qui sont le contrat réel :
 5. **`rendre()` ne lit ni la base ni R2.** Il reçoit un dossier et une
    composition. C'est ce qui permet de l'exécuter à la main en T1, sans
    base.
+6. **Un seul worker de capture** (`--workers 1`) [T0, 29/09]. Le mode
+   « auto » du moteur calibre le nombre de workers sur la vitesse de la
+   machine, et le découpage des frames entre pages Chrome change les
+   pixels : `hash_frames` dépendrait de la machine et varierait d'un
+   rendu à l'autre (mesuré : 1, 3 et 4 workers, deux hashes). Coût nul
+   mesuré : 15 à 16,6 s pour 15 s de vidéo, plus rapide que « auto ».
+7. **x264 à un thread** (`-threads 1`) [T0, 29/09, É-14]. x264
+   multi-thread n'est pas reproductible octet pour octet : mêmes PNG, deux
+   fichiers. À un thread, les fichiers encodés sont identiques ; coût
+   mesuré, 27 s au lieu de 15 s pour les deux sorties.
+
+Les règles d'écriture qui rendent une page déterministe (état à t = 0
+dans le DOM, `will-change` sur toute opacité animée) appartiennent au
+template et au runtime : T11 de `Template.rules.md`. Le lint les vérifie.
 
 **Ce que HyperFrames fournit, et ce qu'il ne fournit pas** [D-28/09].
 Le moteur est confirmé : projet open source de HeyGen, licence Apache

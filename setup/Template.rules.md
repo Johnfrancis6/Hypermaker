@@ -280,6 +280,18 @@ publication, par analyse statique du HTML et du CSS.
 - **Aucune source de non-déterminisme** : pas de `Math.random`, `Date.now`,
   `performance.now` ni `requestAnimationFrame` piloté par l'horloge murale.
   Toute animation est fonction du temps de composition.
+- **État à t = 0 dans le DOM, pas dans la timeline** [T0, 29/09]. Sur une page
+  fraîche, `seek(0)` ne rend rien : l'état initial de chaque élément est posé
+  avant la timeline, et la timeline ne porte que des changements. Jamais deux
+  instructions contradictoires sur un même élément à une même position. Sinon
+  le résultat dépend du chemin de seek de chaque page de capture. Mesuré : une
+  frame 0 vide dans tous les rendus, et des frames vides dans un rendu sur six.
+- **`will-change: opacity` sur tout élément dont l'opacité s'anime** [T0,
+  29/09]. Sans lui, Chrome décide au lancement de composer l'élément sur sa
+  propre couche ou non, et les deux chemins diffèrent de 1 à 2 niveaux. Mesuré :
+  deux `hash_frames` selon le lancement ; 16 rendus sur 16 identiques avec
+  `will-change`. Même principe pour toute propriété animée qui pourrait
+  déclencher une couche (`transform`), à vérifier quand un template l'animera.
 - Aucun texte visible en dur : tout texte vient d'un slot
 
 Ces règles traduisent R11 (déterminisme) et la séparation des couches au niveau du

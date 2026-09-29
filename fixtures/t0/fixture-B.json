@@ -143,6 +143,7 @@
       "layers": [
         {
           "layer_id": "ly_sc_01_bg",
+          "slot_id": "slot_bg",
           "role": "background",
           "asset_ref": "ast_t0_fond_aplat",
           "z_index": 0,
@@ -156,6 +157,7 @@
         },
         {
           "layer_id": "ly_sc_01_subject",
+          "slot_id": "slot_subject",
           "role": "subject",
           "asset_ref": "ast_t0_sujet_carre",
           "z_index": 10,
@@ -169,6 +171,7 @@
         },
         {
           "layer_id": "ly_sc_01_logo",
+          "slot_id": "slot_logo",
           "role": "logo",
           "asset_ref": "ast_t0_logo_opaque",
           "z_index": 30,
@@ -184,6 +187,7 @@
       "text_elements": [
         {
           "text_id": "txt_sc_01_headline",
+          "slot_id": "slot_headline",
           "role": "headline",
           "content": "Votre dos vous dira merci",
           "font_ref": "fnt_demo_sans_700",
@@ -214,6 +218,7 @@
         },
         {
           "text_id": "txt_sc_01_support",
+          "slot_id": "slot_support",
           "role": "body",
           "content": "Un fauteuil pensé pour huit heures de travail",
           "font_ref": "fnt_demo_sans_400",
@@ -253,6 +258,7 @@
       "layers": [
         {
           "layer_id": "ly_sc_02_bg",
+          "slot_id": "slot_bg",
           "role": "background",
           "asset_ref": "ast_t0_fond_aplat",
           "z_index": 0,
@@ -266,6 +272,7 @@
         },
         {
           "layer_id": "ly_sc_02_subject",
+          "slot_id": "slot_subject",
           "role": "subject",
           "asset_ref": "ast_t0_sujet_carre",
           "z_index": 10,
@@ -279,6 +286,7 @@
         },
         {
           "layer_id": "ly_sc_02_logo",
+          "slot_id": "slot_logo",
           "role": "logo",
           "asset_ref": "ast_t0_logo_opaque",
           "z_index": 30,
@@ -294,6 +302,7 @@
       "text_elements": [
         {
           "text_id": "txt_sc_02_headline",
+          "slot_id": "slot_headline",
           "role": "headline",
           "content": "Assemblé en dix minutes",
           "font_ref": "fnt_demo_sans_700",
@@ -324,6 +333,7 @@
         },
         {
           "text_id": "txt_sc_02_support",
+          "slot_id": "slot_support",
           "role": "body",
           "content": "Livraison offerte dès aujourd'hui",
           "font_ref": "fnt_demo_sans_400",

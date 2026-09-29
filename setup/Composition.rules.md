@@ -94,6 +94,13 @@ Pour `preview` uniquement :
 - `montage_plan_hash` correspond au hash du plan validé
 - Chaque élément de la composition issu d'une décision du Monteur porte un
   `plan_decision_ref` qui pointe vers cette décision dans le plan
+- **Composition ↔ manifeste** (É-17) : chaque `layer.slot_id` et chaque
+  `text_element.slot_id` existe dans le manifeste du template de la scène
+  (`template_id`, `template_version`). Une couche vise un slot `media` ou `logo`
+  dont `accepts_roles` contient son `role` ; un texte vise un slot `text` dont
+  `text_role` égale son `role`. Au plus un élément par slot et par scène ; tout
+  slot `required` est rempli, ou sa dégradation (T9) est journalisée. La liaison
+  est **nommée**, jamais déduite : l'adaptateur n'a rien à choisir.
 - Chaque `qa.checklist[].scene_id` référence une scène existante
 - Tout `must_show` du storyboard apparaît dans `qa.checklist`
 

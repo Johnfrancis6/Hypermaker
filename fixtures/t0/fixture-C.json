@@ -143,6 +143,7 @@
       "layers": [
         {
           "layer_id": "ly_sc_01_bg",
+          "slot_id": "slot_bg",
           "role": "background",
           "asset_ref": "ast_t0_fond_basse_def",
           "z_index": 0,
@@ -156,6 +157,7 @@
         },
         {
           "layer_id": "ly_sc_01_subject",
+          "slot_id": "slot_subject",
           "role": "subject",
           "asset_ref": "ast_t0_sujet_basse_def",
           "z_index": 10,
@@ -169,6 +171,7 @@
         },
         {
           "layer_id": "ly_sc_01_logo",
+          "slot_id": "slot_logo",
           "role": "logo",
           "asset_ref": "ast_t0_logo_alpha",
           "z_index": 30,
@@ -184,6 +187,7 @@
       "text_elements": [
         {
           "text_id": "txt_sc_01_headline",
+          "slot_id": "slot_headline",
           "role": "headline",
           "content": "Des soins pensés pour les peaux sensibles, sans parfum",
           "font_ref": "fnt_demo_sans_700",
@@ -214,6 +218,7 @@
         },
         {
           "text_id": "txt_sc_01_support",
+          "slot_id": "slot_support",
           "role": "body",
           "content": "Formule testée sous contrôle dermatologique, flacon recyclable et rechargeable",
           "font_ref": "fnt_demo_sans_400",
@@ -253,6 +258,7 @@
       "layers": [
         {
           "layer_id": "ly_sc_02_bg",
+          "slot_id": "slot_bg",
           "role": "background",
           "asset_ref": "ast_t0_fond_basse_def",
           "z_index": 0,
@@ -266,6 +272,7 @@
         },
         {
           "layer_id": "ly_sc_02_subject",
+          "slot_id": "slot_subject",
           "role": "subject",
           "asset_ref": "ast_t0_sujet_basse_def",
           "z_index": 10,
@@ -279,6 +286,7 @@
         },
         {
           "layer_id": "ly_sc_02_logo",
+          "slot_id": "slot_logo",
           "role": "logo",
           "asset_ref": "ast_t0_logo_alpha",
           "z_index": 30,
@@ -294,6 +302,7 @@
       "text_elements": [
         {
           "text_id": "txt_sc_02_headline",
+          "slot_id": "slot_headline",
           "role": "headline",
           "content": "La routine complète tient dans une seule trousse",
           "font_ref": "fnt_demo_sans_700",
@@ -324,6 +333,7 @@
         },
         {
           "text_id": "txt_sc_02_support",
+          "slot_id": "slot_support",
           "role": "body",
           "content": "Trois gestes le matin, deux le soir",
           "font_ref": "fnt_demo_sans_400",

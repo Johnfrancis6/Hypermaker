@@ -76,16 +76,43 @@ test("injection : la fixture A passe", () => {
   assert.equal(d.scenes[1].visible_debut_s, 7.5);
 });
 
-test("injection refuse : deux slots acceptent le même rôle (É-17)", () => {
+test("É-17 : deux slots acceptant le même rôle ne sont plus ambigus, la liaison suit slot_id", () => {
   const m = structuredClone(MANIFESTE);
   m.slots.find((s) => s.slot_id === "slot_bg").accepts_roles.push("subject");
-  assert.throws(() => injecterAvec({ manifeste: m }), /É-17/);
+  const d = injecterAvec({ manifeste: m });
+  const sujet = d.scenes[0].slots.find((s) => s.role === "subject");
+  assert.equal(sujet.slot, "slot_subject");
 });
 
-test("injection refuse : rôle sans slot", () => {
+test("injection refuse (R3) : slot_id absent du manifeste", () => {
+  const c = structuredClone(FIXTURE);
+  c.scenes[0].layers[1].slot_id = "slot_inconnu";
+  assert.throws(() => injecterAvec({ fixture: c }), /slot_inconnu absent du manifeste/);
+});
+
+test("injection refuse (R3) : couche liée à un slot texte", () => {
+  const c = structuredClone(FIXTURE);
+  c.scenes[0].layers[1].slot_id = "slot_headline";
+  assert.throws(() => injecterAvec({ fixture: c }), /n'accepte pas le rôle subject/);
+});
+
+test("injection refuse (R3) : rôle non accepté par le slot nommé", () => {
+  const c = structuredClone(FIXTURE);
+  c.scenes[0].layers[0].slot_id = "slot_subject"; // un fond dans le slot du sujet
+  assert.throws(() => injecterAvec({ fixture: c }), /n'accepte pas le rôle background/);
+});
+
+test("injection refuse (R3) : rôle broll, accepté par aucun slot (vocabulaires disjoints)", () => {
   const c = structuredClone(FIXTURE);
   c.scenes[0].layers[1].role = "broll";
-  assert.throws(() => injecterAvec({ fixture: c }), /0 slot\(s\) candidat/);
+  assert.throws(() => injecterAvec({ fixture: c }), /n'accepte pas le rôle broll/);
+});
+
+test("injection refuse (R3) : deux éléments dans le même slot", () => {
+  const c = structuredClone(FIXTURE);
+  c.scenes[0].text_elements[1].slot_id = "slot_headline";
+  c.scenes[0].text_elements[1].role = "headline";
+  assert.throws(() => injecterAvec({ fixture: c }), /déjà rempli dans la scène/);
 });
 
 test("injection refuse : boîte incohérente avec le manifeste", () => {

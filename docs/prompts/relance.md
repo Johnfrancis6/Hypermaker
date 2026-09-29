@@ -275,3 +275,16 @@ remesurer sans strace pour le rapport.
 - T0-technique clos : recette verte au commit 13c9dc1 (docs/rapport_T0.md).
   Portes ouvertes par ce verdict : compilateur, templates supplémentaires
   (T2). Toujours fermées : audio et Monteur (T0b), critère B (assets client).
+
+═══ 13. É-17 CORRIGÉ (29/09) ═══
+
+layer.slot_id et text_element.slot_id, requis, motif ^slot_[a-z0-9_]{2,32}$
+(comme montage_plan.scenes[].broll[].slot_id). R3 étendue : composition ↔
+manifeste (slot existant, nature compatible, rôle accepté, au plus un
+élément par slot, slots requis remplis ou dégradation T9 journalisée).
+L'injection suit slot_id, ne déduit plus rien du rôle.
+
+É-20, à trancher : layer.role {background, subject, broll, logo, overlay}
+et accepts_roles {subject, background, logo, supporting} ne se recouvrent
+pas ; broll et overlay ne sont acceptés par aucun slot. Aucune
+correspondance inventée : R3 exige le rôle littéralement.

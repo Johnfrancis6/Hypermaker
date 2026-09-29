@@ -122,10 +122,18 @@ voit (voir Q3).
 - `verifierT11` fait l'analyse statique du template : correspondance slots ↔ `data-slot` dans les deux sens et exactement une fois, aucune couleur, police, durée, URL, aléa ni texte en dur. 13 violations sont testées et refusées.
 - L'injection vérifie en plus que les boîtes de la composition concordent avec le manifeste à ±1 px, ainsi que les `z_index`.
 
-**Ce qui ne tient pas** : la composition ne nomme pas le slot (**É-17**,
-bloquant pour T2). L'injection déduit la liaison par le rôle, et **échoue au
-lieu de choisir** si deux slots acceptent le même rôle (testé). En T0, chaque
-rôle est unique, donc rien n'est ambigu.
+**Ce qui ne tenait pas, corrigé le 29/09 (É-17)** : la composition ne nommait
+pas le slot, et l'injection devait déduire la liaison du rôle. `layer` et
+`text_element` portent désormais un `slot_id` requis, et R3 vérifie la
+correspondance composition ↔ manifeste : slot existant, nature compatible, rôle
+accepté, au plus un élément par slot. L'injection suit `slot_id` et ne déduit
+plus rien. Les pages injectées des trois jeux sont identiques octet pour octet
+à celles d'avant la correction.
+
+**Écart restant (É-20, à trancher)** : `layer.role` (`background`, `subject`,
+`broll`, `logo`, `overlay`) et `accepts_roles` (`subject`, `background`,
+`logo`, `supporting`) ne se recouvrent pas. Une couche `broll` ou `overlay`
+n'est acceptée par aucun slot, et R3 la rejette (testé).
 
 La composition v2 ne sait pas non plus exprimer ce qui suit. En T0, j'ai
 contourné chaque point par le cas le plus simple ; aucun n'est corrigé :

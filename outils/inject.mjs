@@ -1,7 +1,8 @@
 // Injection : composition (fixture) + template → dossier de rendu autonome.
 //
 // Tout ce qui peut être résolu l'est ici, côté Node, avant que la page
-// n'existe : contrôle statique T11 du template, liaison couche → slot,
+// n'existe : contrôle statique T11 du template, liaison couche → slot par
+// slot_id (R3),
 // cohérence des boîtes et des z_index avec le manifeste, conversion des
 // temps par le numéro de frame, @font-face sous le nom privé, copie et
 // vérification (octets, sha256) des assets et des polices.
@@ -78,13 +79,14 @@ export function verifierT11(html, manifeste) {
   return erreurs;
 }
 
-// Liaison couche / texte → slot, par le rôle. La composition ne porte pas de
-// slot_id (É-17) : si deux slots acceptent le même rôle, on échoue au lieu de
-// choisir.
-function lierSlot(manifeste, candidat, quoi) {
-  const slots = manifeste.slots.filter(candidat);
-  exiger(slots.length === 1, `${quoi} : ${slots.length} slot(s) candidat(s) (${slots.map((s) => s.slot_id).join(", ") || "aucun"}). La composition ne nomme pas le slot (É-17) : liaison ambiguë ou impossible.`);
-  return slots[0];
+// Liaison couche / texte → slot : NOMMÉE par slot_id dans la composition
+// (É-17), jamais déduite du rôle. R3 : le slot existe dans le manifeste, sa
+// nature convient, et il accepte le rôle de l'élément.
+function lierSlot(manifeste, el, compatible, quoi) {
+  const slot = manifeste.slots.find((s) => s.slot_id === el.slot_id);
+  exiger(slot, `${quoi} : slot_id ${el.slot_id} absent du manifeste ${manifeste.template_id} ${manifeste.version} (R3)`);
+  exiger(compatible(slot), `${quoi} : le slot ${slot.slot_id} (${slot.kind}${slot.accepts_roles ? `, accepte ${slot.accepts_roles.join("/")}` : `, text_role ${slot.text_role}`}) n'accepte pas le rôle ${el.role} (R3)`);
+  return slot;
 }
 
 function boiteManifeste(slot, canvas) {
@@ -174,8 +176,8 @@ export function injecter(fichierFixture, sortie) {
     const remplis = new Set();
     for (const ly of sc.layers) {
       const quoi = `${sc.scene_id}/${ly.layer_id} (role ${ly.role})`;
-      const slot = lierSlot(manifeste, (s) => s.kind !== "text" && s.accepts_roles.includes(ly.role), quoi);
-      exiger(!remplis.has(slot.slot_id), `${quoi} : ${slot.slot_id} déjà rempli`);
+      const slot = lierSlot(manifeste, ly, (s) => s.kind !== "text" && s.accepts_roles.includes(ly.role), quoi);
+      exiger(!remplis.has(slot.slot_id), `${quoi} : ${slot.slot_id} déjà rempli dans la scène (R3)`);
       remplis.add(slot.slot_id);
       verifierBoite(slot, ly.box, c.canvas, quoi);
       exiger(ly.z_index === zParSlot[slot.slot_id], `${quoi} : z_index ${ly.z_index}, le manifeste donne ${zParSlot[slot.slot_id]}`);
@@ -188,8 +190,8 @@ export function injecter(fichierFixture, sortie) {
     }
     for (const t of sc.text_elements ?? []) {
       const quoi = `${sc.scene_id}/${t.text_id} (role ${t.role})`;
-      const slot = lierSlot(manifeste, (s) => s.kind === "text" && s.text_role === t.role, quoi);
-      exiger(!remplis.has(slot.slot_id), `${quoi} : ${slot.slot_id} déjà rempli`);
+      const slot = lierSlot(manifeste, t, (s) => s.kind === "text" && s.text_role === t.role, quoi);
+      exiger(!remplis.has(slot.slot_id), `${quoi} : ${slot.slot_id} déjà rempli dans la scène (R3)`);
       remplis.add(slot.slot_id);
       verifierBoite(slot, t.box, c.canvas, quoi);
       const f = fontParRef[t.font_ref];

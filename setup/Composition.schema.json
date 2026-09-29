@@ -411,9 +411,11 @@
     "layer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["layer_id", "role", "asset_ref", "z_index", "box", "fit"],
+      "required": ["layer_id", "slot_id", "role", "asset_ref", "z_index", "box", "fit"],
       "properties": {
         "layer_id": { "type": "string", "pattern": "^ly_[a-z0-9_]{2,32}$" },
+        "slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_]{2,32}$",
+          "$comment": "Slot du template (manifeste) que remplit cette couche — même motif que montage_plan.scenes[].broll[].slot_id. Sans lui, l'adaptateur devrait déduire la liaison du rôle, donc choisir dès que deux slots acceptent le même rôle (É-17). Vérifié par R3." },
         "role": { "enum": ["background", "subject", "broll", "logo", "overlay"],
           "$comment": "Rôle structurel, pas une intention : il détermine les règles applicables (R5 zone de sécurité pour logo, R6 interdiction de vector en background)." },
         "asset_ref": { "type": "string", "pattern": "^ast_[a-z0-9_]{3,40}$" },
@@ -434,9 +436,11 @@
     "text_element": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["text_id", "role", "content", "font_ref", "box", "font_size_px", "min_font_size_px", "max_lines", "overflow", "color", "align", "animation"],
+      "required": ["text_id", "slot_id", "role", "content", "font_ref", "box", "font_size_px", "min_font_size_px", "max_lines", "overflow", "color", "align", "animation"],
       "properties": {
         "text_id": { "type": "string", "pattern": "^txt_[a-z0-9_]{2,32}$" },
+        "slot_id": { "type": "string", "pattern": "^slot_[a-z0-9_]{2,32}$",
+          "$comment": "Slot texte du template que remplit cet élément (É-17). Vérifié par R3." },
         "role": { "enum": ["headline", "body", "price", "cta", "caption"],
           "$comment": "Rôle structurel. Un cta est soumis à la zone de sécurité comme un logo (R5)." },
         "content": { "type": "string", "minLength": 1, "maxLength": 120 },

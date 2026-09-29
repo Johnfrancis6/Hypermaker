@@ -288,3 +288,32 @@ L'injection suit slot_id, ne déduit plus rien du rôle.
 et accepts_roles {subject, background, logo, supporting} ne se recouvrent
 pas ; broll et overlay ne sont acceptés par aucun slot. Aucune
 correspondance inventée : R3 exige le rôle littéralement.
+
+═══ 14. PLAN T0b VALIDÉ (29/09) ═══
+
+Périmètre : synthèse Chatterbox par scène + post-traitement §7.2 (débit de
+parole réel, temps GPU L4 et CPU 8 threads pour É-15, reproductibilité) ;
+alignement forcé ; mixage §7.4–7.6 sur la fixture C avec vérificateur
+R10/R13/R14/R15 et déterminisme du mix ; tatouage après AAC ; planches A/B
+pour les constantes perceptuelles, jugées à l'écoute par Franco.
+Hors périmètre : job-tts déployé (esquisse), Postgres, compilateur,
+Monteur, bibliothèque musicale complète, WhatsApp.
+
+Réponses de Franco :
+- Voix : fournie par Franco. Déposée dans le dépôt (assets/voix/) avec
+  l'identité du locuteur et son accord pour un usage commercial ; l'agent
+  n'a pas accès à WhatsApp. En attendant : voix par défaut de Chatterbox,
+  pour les mesures seulement, jamais au catalogue.
+- Scripts : en production, écrits par projet et par client. En T0b :
+  scripts de test neutres écrits par l'agent, matériaux de mesure.
+- Alignement — PROPOSITION de l'agent, en attente de confirmation (Franco
+  a demandé si Whisper suffisait) : Whisper seul n'est pas une référence
+  (horodatages de mots à ±100–300 ms, tolérance R13 = 33 ms). Trois
+  candidats (MMS, wav2vec2 FR, Whisper) ; là où ils concordent à 33 ms
+  près, la mesure tient ; seuls les mots en désaccord sont annotés à la
+  main.
+- Pistes et effets : l'agent choisit et télécharge, licence Pixabay
+  Content License ou CC0 uniquement (R16), source, licence et sha256
+  consignés.
+- Machine : Colab L4 pour les temps de référence, GTX 1070 locale (8 Go)
+  pour développer.

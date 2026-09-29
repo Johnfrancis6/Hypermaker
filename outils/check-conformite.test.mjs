@@ -23,7 +23,10 @@ const VIDEO = (o = {}) => [
   ...(o.audio === false ? [] : ["-f", "lavfi", "-i", o.son ?? "anullsrc=r=48000:cl=stereo"]),
   "-t", String(o.duree ?? 1),
   "-c:v", o.codec ?? "libx264", ...(o.codec ? [] : ["-profile:v", o.profil ?? "main", "-level:v", o.level ?? "4.0", "-bf", String(o.bf ?? 0)]),
-  "-pix_fmt", o.pix ?? "yuv420p", ...(o.vf ? ["-vf", o.vf] : []), ...(o.vfr ? ["-vsync", "passthrough"] : []), // ffmpeg 4.4 : -vsync (pas -fps_mode)
+  "-pix_fmt", o.pix ?? "yuv420p",
+  // BT.709 converti ET étiqueté, comme l'encodeur ; o.sansCouleur retire les deux.
+  "-vf", [o.vf, o.sansCouleur ? null : "scale=out_color_matrix=bt709:out_range=tv"].filter(Boolean).join(",") || "null",
+  ...(o.sansCouleur ? [] : ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"]), ...(o.vfr ? ["-vsync", "passthrough"] : []), // ffmpeg 4.4 : -vsync (pas -fps_mode)
   ...(o.audio === false ? [] : ["-c:a", "aac", "-b:a", "128k", "-ar", String(o.ar ?? 48000), "-ac", String(o.ac ?? 2)]),
   ...(o.faststart === false ? [] : ["-movflags", "+faststart"]),
 ];
@@ -53,6 +56,7 @@ before(() => {
     vfr: fichier("vfr", { vf: "select='not(eq(n\\,10))'", vfr: true }),
     petit: fichier("720", { taille: "720x1280", level: "3.1" }),
     mpeg4: fichier("mpeg4", { codec: "mpeg4" }),
+    sansCouleur: fichier("sans-couleur", { sansCouleur: true }),
     // sine sort à -18 dBFS. Mesuré après AAC : +18 dB → crête -3,0 dBTP ;
     // +20 dB → -1,0 (passe, la règle est ≤ -1) ; +21 dB → -0,1 dBTP, -3,0 LUFS.
     sonFort: fichier("son-fort", { son: "sine=f=1000:r=48000,volume=21dB,aformat=channel_layouts=stereo" }),
@@ -78,6 +82,7 @@ const cas = [
   ["vfr", "preview", /durées de paquets toutes égales/],
   ["petit", "preview", /résolution/],
   ["mpeg4", "preview", /codec_name/],
+  ["sansCouleur", "preview", /color_space/],
 ];
 for (const [nom, sortie, attendu] of cas) {
   test(`refuse : ${nom}`, () => {

@@ -20,8 +20,13 @@ function profilVideo(e, entree) {
   const v = e.video;
   const [l, h] = e.resolution.split("x").map(Number);
   return {
-    filtre: `${entree}scale=${l}:${h}:flags=lanczos,format=${v.pix_fmt}`,
+    // Espace colorimétrique décidé par la composition (encode.*.video.color) :
+    // la MATRICE de conversion RGB → YUV et les ÉTIQUETTES du flux, dans la
+    // même commande. Des étiquettes BT.709 sur une conversion BT.601 (défaut
+    // de swscale) décaleraient les couleurs à la lecture.
+    filtre: `${entree}scale=${l}:${h}:flags=lanczos:out_color_matrix=${v.color.matrix}:out_range=${v.color.range},format=${v.pix_fmt}`,
     options: [
+      "-colorspace", v.color.matrix, "-color_primaries", v.color.primaries, "-color_trc", v.color.transfer, "-color_range", v.color.range,
       // -threads 1 : x264 multi-thread n'est pas reproductible octet pour
       // octet (mesuré : mêmes PNG, deux fichiers différents ; -threads 1,
       // deux fichiers identiques). Épinglé comme le prévoit É-14.

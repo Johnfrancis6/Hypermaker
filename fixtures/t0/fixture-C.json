@@ -26,6 +26,12 @@
         "profile": "main",
         "level": "4.0",
         "pix_fmt": "yuv420p",
+        "color": {
+          "matrix": "bt709",
+          "primaries": "bt709",
+          "transfer": "bt709",
+          "range": "tv"
+        },
         "b_frames": 0,
         "bitrate_kbps": 6000,
         "maxrate_kbps": 8000,
@@ -50,6 +56,12 @@
         "profile": "high",
         "level": "4.1",
         "pix_fmt": "yuv420p",
+        "color": {
+          "matrix": "bt709",
+          "primaries": "bt709",
+          "transfer": "bt709",
+          "range": "tv"
+        },
         "b_frames": 2,
         "bitrate_kbps": 16000,
         "maxrate_kbps": 20000,

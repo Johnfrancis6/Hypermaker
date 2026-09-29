@@ -77,6 +77,11 @@ export function verifier(composition, fichier, sortie) {
   if (sortie === "preview") c("R9", "has_b_frames", 0, vv.has_b_frames, vv.has_b_frames === 0);
   else c("R9", "has_b_frames ≤ encode.master.video.b_frames", `≤ ${e.video.b_frames}`, vv.has_b_frames, vv.has_b_frames <= e.video.b_frames);
   c("R9", "pix_fmt", "yuv420p", vv.pix_fmt, vv.pix_fmt === "yuv420p");
+  const col = e.video.color;
+  c("R9", "color_space (matrice)", col.matrix, vv.color_space, vv.color_space === col.matrix);
+  c("R9", "color_primaries", col.primaries, vv.color_primaries, vv.color_primaries === col.primaries);
+  c("R9", "color_transfer", col.transfer, vv.color_transfer, vv.color_transfer === col.transfer);
+  c("R9", "color_range", col.range, vv.color_range, vv.color_range === col.range);
   c("D12", "résolution", e.resolution, `${vv.width}x${vv.height}`, `${vv.width}x${vv.height}` === e.resolution);
   const fps = `${canvas.fps}/1`;
   c("R9", "fréquence d'images (r_frame_rate)", fps, vv.r_frame_rate, vv.r_frame_rate === fps);

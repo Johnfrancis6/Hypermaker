@@ -273,6 +273,7 @@ sans relance automatique.
 | `profile` | `Main` | `Main` ou `High` | rejet |
 | `has_b_frames` | `0` | libre | rejet (preview) |
 | `pix_fmt` | `yuv420p` | `yuv420p` | rejet |
+| espace colorimétrique | `encode.preview.video.color` | `encode.master.video.color` | rejet |
 | fréquence d'images | fixe | fixe | rejet |
 | piste audio | `aac`, stéréo | `aac`, stéréo, ≥ 128 kbps | rejet |
 | `size` | ≤ `encode.preview.max_bytes` | ≤ `encode.master.max_bytes` | ré-encodage à bitrate réduit, une fois |
@@ -287,6 +288,12 @@ lire la vidéo. Sans ce contrôle, tu l'apprends par le client.
 Le master part en `document` : WhatsApp ne le transcode pas et ne le lit pas en
 ligne, d'où la tolérance sur le profil et les B-frames. Il reste en H.264 et AAC,
 exigés par les plateformes publicitaires.
+
+**Espace colorimétrique.** `color_space`, `color_primaries`, `color_transfer` et
+`color_range` lus par ffprobe égalent `encode.<sortie>.video.color` (BT.709, plage
+`tv`). Les étiquettes ne suffisent pas : la matrice de conversion RGB → YUV doit
+être la même, sinon le fichier est étiqueté BT.709 mais converti en BT.601.
+L'encodeur applique les deux dans la même commande.
 
 **Débit audio du master : déclaré ou mesuré.** « ≥ 128 kbps » porte sur le débit
 d'encodage déclaré, `encode.master.audio.bitrate_kbps`, toujours. Le débit

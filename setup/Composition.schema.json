@@ -88,13 +88,14 @@
             "video": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["codec", "profile", "level", "pix_fmt", "b_frames", "bitrate_kbps", "maxrate_kbps", "bufsize_kbps", "keyint", "preset"],
+              "required": ["codec", "profile", "level", "pix_fmt", "color", "b_frames", "bitrate_kbps", "maxrate_kbps", "bufsize_kbps", "keyint", "preset"],
               "properties": {
                 "codec": { "const": "h264" },
                 "profile": { "const": "main",
                   "$comment": "Contrainte WhatsApp. High passe parfois, Main passe toujours." },
                 "level": { "enum": ["3.1", "4.0", "4.1"] },
                 "pix_fmt": { "const": "yuv420p" },
+                "color": { "$ref": "#/$defs/video_color" },
                 "b_frames": { "const": 0,
                   "$comment": "Non négociable. Un échec est TOTALEMENT SILENCIEUX : l'API accepte l'upload, le client Android échoue simplement à lire. Contrôle ffprobe bloquant (R9)." },
                 "bitrate_kbps": { "type": "integer", "minimum": 800, "maximum": 8000,
@@ -123,12 +124,13 @@
             "video": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["codec", "profile", "level", "pix_fmt", "b_frames", "bitrate_kbps", "maxrate_kbps", "bufsize_kbps", "keyint", "preset"],
+              "required": ["codec", "profile", "level", "pix_fmt", "color", "b_frames", "bitrate_kbps", "maxrate_kbps", "bufsize_kbps", "keyint", "preset"],
               "properties": {
                 "codec": { "const": "h264" },
                 "profile": { "enum": ["main", "high"] },
                 "level": { "enum": ["4.0", "4.1", "4.2"] },
                 "pix_fmt": { "const": "yuv420p" },
+                "color": { "$ref": "#/$defs/video_color" },
                 "b_frames": { "type": "integer", "minimum": 0, "maximum": 3,
                   "$comment": "Autorisées : le master n'est pas lu par le lecteur vidéo de WhatsApp." },
                 "bitrate_kbps": { "type": "integer", "minimum": 4000, "maximum": 26000,
@@ -225,6 +227,19 @@
         "y": { "type": "integer" },
         "width": { "type": "integer", "minimum": 1 },
         "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "video_color": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matrix", "primaries", "transfer", "range"],
+      "$comment": "Espace colorimétrique de la sortie, décidé ICI et non par l'encodeur (T0, 29/09) : sans valeur, la conversion RGB → yuv420p prend la matrice par défaut de swscale (BT.601) sans étiquette, et un lecteur qui suppose BT.709 pour du 1080p décale les couleurs de marque. BT.709 partout, plage limitée (tv) : la norme de la vidéo HD et ce que les plateformes supposent. Appliqué dans la commande FFmpeg (matrice de conversion ET étiquettes), vérifié par R9.",
+      "properties": {
+        "matrix": { "const": "bt709" },
+        "primaries": { "const": "bt709" },
+        "transfer": { "const": "bt709" },
+        "range": { "const": "tv" }
       }
     },
 

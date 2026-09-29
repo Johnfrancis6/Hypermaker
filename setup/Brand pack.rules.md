@@ -110,10 +110,16 @@ sur un visuel, mais il ne peut pas en connaître la licence. Deux chemins seulem
 - sinon, le LLM propose la police libre la plus proche (licence OFL, par exemple),
   que Franco valide.
 
-**Test de chargement effectif** : rendre une page de contrôle avec chaque police et
-vérifier `document.fonts.check()`. Une police présente sur disque et correctement
-déclarée peut quand même ne pas se charger : Chrome bascule alors en fallback sans
-la moindre erreur.
+**Test de chargement effectif** : rendre une page de contrôle qui déclare chaque
+police par un `@font-face` sous son nom privé (T11), puis exiger dans
+`document.fonts` une `FontFace` de cette famille, de ce poids et de ce style, à
+l'état `loaded`. Une police présente sur disque et correctement déclarée peut
+quand même ne pas se charger : Chrome bascule alors en fallback sans la moindre
+erreur.
+
+`document.fonts.check()` n'est pas ce test. Mesuré en T0 (Chrome 152) : il
+répond vrai pour une famille qui n'existe nulle part, sur une page sans aucun
+`@font-face`.
 
 ## B5 — Signature de mouvement et vocabulaire du client
 

@@ -106,13 +106,22 @@ réparation ciblée.
 
 - Chaque `font_ref` utilisé par un `text_element` existe dans `fonts`
 - Chaque `fonts[].uri` est présent sur le disque du conteneur, avec une taille > 0
-- **Vérification de chargement effectif** : après injection dans la page, contrôler
-  via `document.fonts.check()` que la police demandée est bien active
+- Chaque `fonts[].family` est un **nom privé** (T11) : aucune homonyme publique,
+  ni dans le paquet du moteur ni sur Google Fonts, ne peut la satisfaire
+- **Vérification de chargement effectif** : après injection dans la page, pour
+  chaque entrée de `fonts`, `document.fonts` contient une `FontFace` de cette
+  famille, de ce `weight` et de ce `style`, à l'état `loaded`. Sinon, rejet avant
+  la première frame.
 
 Le dernier point n'est pas redondant. Une police déclarée, présente sur disque et
 référencée dans le CSS peut quand même échouer à se charger, et Chrome bascule
 alors en fallback **sans erreur**. Le rendu part en production avec la mauvaise
 typographie. C'est le mode d'échec le plus discret du pipeline.
+
+**`document.fonts.check()` ne suffit pas et ne prouve rien seul.** Mesuré en T0
+(Chrome 152) : il répond vrai pour une famille qui n'existe nulle part, sur une
+page sans aucun `@font-face`, parce qu'aucune face n'est « à charger ». Il peut
+être relevé, jamais servir de preuve.
 
 ## R5 — Zone de sécurité et débordement
 

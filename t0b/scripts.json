@@ -1,0 +1,15 @@
+{
+  "commentaire": "Scripts de TEST de T0b : matériaux de mesure neutres (débit de parole, alignement, temps de synthèse), jamais livrés à un client. Forme parlée, sans chiffres ni symboles (motif de S4). Huit scènes d'environ quatre secondes : le seuil d'É-15 est posé sur huit scènes de quatre secondes. Difficultés d'alignement volontaires : apostrophes, liaisons, mots très courts, nom propre.",
+  "projet_id": "proj_t0bmesure",
+  "langue": "fr",
+  "scenes": [
+    { "scene_id": "sc_01", "texte": "Chaque matin, on torréfie nos grains à la main." },
+    { "scene_id": "sc_02", "texte": "Un café doux, rond, avec une note de noisette." },
+    { "scene_id": "sc_03", "texte": "Les petits producteurs sont payés au juste prix." },
+    { "scene_id": "sc_04", "texte": "Il n'y a ni arôme ajouté, ni sucre caché." },
+    { "scene_id": "sc_05", "texte": "Commandez avant midi, et recevez-le dès demain." },
+    { "scene_id": "sc_06", "texte": "Votre première tasse est offerte cette semaine." },
+    { "scene_id": "sc_07", "texte": "Maison Ébène, le goût vrai de l'Afrique de l'Ouest." },
+    { "scene_id": "sc_08", "texte": "Écrivez-nous sur WhatsApp pour goûter à votre tour." }
+  ]
+}
